@@ -1,0 +1,260 @@
+import type {
+  AlertItem,
+  HelpRequest,
+  IncidentReport,
+  NearbyResource,
+  OrganizationStatusRecord,
+  ReportDraft,
+  ResourceAvailability,
+  Volunteer,
+  VolunteerTask,
+} from "../types";
+
+export const CURRENT_VOLUNTEER_ID = "vol-1";
+
+export const initialHelpRequests: HelpRequest[] = [
+  {
+    id: "req-1",
+    type: "Shelter",
+    location: "Scarborough Town Centre",
+    description: "Family of three needs a safe place for tonight after an apartment fire.",
+    priority: "Urgent",
+    status: "Pending",
+    createdAt: "2026-07-21T18:10:00.000Z",
+    updatedAt: "2026-07-21T18:10:00.000Z",
+  },
+  {
+    id: "req-2",
+    type: "Medical",
+    location: "Kennedy Road and Eglinton Avenue East",
+    description: "Older adult needs transportation to a cooling centre and a basic medical check.",
+    priority: "High",
+    status: "Active",
+    createdAt: "2026-07-21T17:20:00.000Z",
+    updatedAt: "2026-07-21T18:25:00.000Z",
+    assignedVolunteerId: "vol-2",
+    assignedVolunteerName: "Priya Shah",
+  },
+  {
+    id: "req-3",
+    type: "Food",
+    location: "North York Community Housing",
+    description: "Emergency meal support requested for two adults and one child.",
+    priority: "Medium",
+    status: "Resolved",
+    createdAt: "2026-07-20T15:00:00.000Z",
+    updatedAt: "2026-07-20T18:40:00.000Z",
+    assignedVolunteerId: "vol-2",
+    assignedVolunteerName: "Priya Shah",
+  },
+];
+
+export const initialResources: ResourceAvailability = {
+  beds: 12,
+  food: 55,
+  water: 80,
+  blanketsSupplies: "24 blankets, hygiene kits, winter clothing, and basic supplies",
+  medicalSupport: "First-aid nurse available until 10:00 PM",
+  contactNumber: "416-000-0000",
+  operatingHours: "24 hours",
+  updatedAt: "2026-07-21T18:30:00.000Z",
+};
+
+export const initialOrganizationStatus: OrganizationStatusRecord = {
+  status: "Open",
+  note: "General intake is open. Families with children are prioritized tonight.",
+  updatedAt: "2026-07-21T18:30:00.000Z",
+};
+
+export const initialVolunteers: Volunteer[] = [
+  {
+    id: CURRENT_VOLUNTEER_ID,
+    name: "Alex Morgan",
+    email: "alex.morgan@example.com",
+    idDocument: "Ontario ID - DEMO-1024",
+    policeCheck: "Police check reference - PC-4401",
+    emergencyContact: "Taylor Morgan - 647-555-0132",
+    safetyAgreement: true,
+    status: "Pending",
+    resultMessage: "Your information is waiting for administrator review.",
+    submittedAt: "2026-07-21T17:40:00.000Z",
+  },
+  {
+    id: "vol-2",
+    name: "Priya Shah",
+    email: "priya.shah@example.com",
+    idDocument: "Ontario ID - DEMO-3090",
+    policeCheck: "Verified record - PC-2218",
+    emergencyContact: "Nina Shah - 416-555-0190",
+    safetyAgreement: true,
+    status: "Verified",
+    resultMessage: "Approved. Volunteer task access is enabled.",
+    submittedAt: "2026-07-19T14:00:00.000Z",
+  },
+  {
+    id: "vol-3",
+    name: "Marcus Lee",
+    email: "marcus.lee@example.com",
+    idDocument: "Passport - DEMO-5530",
+    policeCheck: "Police check reference - PC-5530",
+    emergencyContact: "Jamie Lee - 647-555-0187",
+    safetyAgreement: true,
+    status: "Pending",
+    resultMessage: "Application is waiting for administrator review.",
+    submittedAt: "2026-07-21T16:20:00.000Z",
+  },
+];
+
+export const initialTasks: VolunteerTask[] = [
+  {
+    id: "task-1",
+    title: "Deliver Bottled Water",
+    type: "Water Delivery",
+    priority: "Urgent",
+    location: "Kennedy Road / Eglinton Avenue East",
+    urgency: "Complete within 60 minutes",
+    description: "Pick up six cases of bottled water from the community centre and deliver them to the warming site.",
+    status: "Available",
+  },
+  {
+    id: "task-2",
+    title: "Transport Emergency Supplies",
+    type: "Supply Transport",
+    priority: "High",
+    location: "Scarborough",
+    urgency: "Needed before 9:00 PM",
+    description: "Move blankets and hygiene kits from the storage location to Progress Shelter.",
+    status: "Available",
+  },
+  {
+    id: "task-3",
+    title: "Food Drop-off",
+    type: "Meal Delivery",
+    priority: "Medium",
+    location: "North York",
+    urgency: "Complete this evening",
+    description: "Deliver prepared meals to a temporary community support location.",
+    status: "Available",
+  },
+  {
+    id: "task-4",
+    title: "Shelter Intake Support",
+    type: "On-site Support",
+    priority: "Low",
+    location: "Progress Avenue",
+    urgency: "Tomorrow morning",
+    description: "Help staff organize intake forms and direct arriving families to the correct desk.",
+    status: "Available",
+  },
+];
+
+export const initialAlerts: AlertItem[] = [
+  {
+    id: "alert-1",
+    title: "Flood Warning",
+    message: "Heavy rain has caused localized flooding in parts of East Toronto.",
+    area: "East Toronto",
+    priority: "Urgent",
+    type: "Emergency",
+    createdAt: "2026-07-21T18:15:00.000Z",
+    instructions: "Avoid flooded roads and follow official evacuation instructions.",
+  },
+  {
+    id: "alert-2",
+    title: "Warming Centre Open",
+    message: "A temporary warming centre is open at 45 Progress Avenue.",
+    area: "Scarborough",
+    priority: "High",
+    type: "Safety",
+    createdAt: "2026-07-21T17:55:00.000Z",
+    instructions: "Bring identification when possible. Walk-ins are accepted.",
+  },
+  {
+    id: "alert-3",
+    title: "Food Supply Update",
+    message: "Prepared meal inventory is running low. Additional deliveries are requested.",
+    area: "Progress Shelter",
+    priority: "Medium",
+    type: "Resource",
+    createdAt: "2026-07-21T17:35:00.000Z",
+    instructions: "Organization staff should update meal counts after every delivery.",
+  },
+];
+
+export const initialIncidentReports: IncidentReport[] = [
+  {
+    id: "incident-1",
+    type: "Flooded Road",
+    description: "Water is covering both lanes and vehicles are turning around.",
+    location: "Kingston Road near Markham Road",
+    urgency: "High",
+    photoName: "flooded-road-demo.jpg",
+    status: "Pending Verification",
+    createdAt: "2026-07-21T18:05:00.000Z",
+  },
+  {
+    id: "incident-2",
+    type: "Power Outage",
+    description: "Several apartment buildings have no power and elevators are unavailable.",
+    location: "North York",
+    urgency: "Medium",
+    status: "Verified",
+    createdAt: "2026-07-21T16:50:00.000Z",
+  },
+  {
+    id: "incident-3",
+    type: "Blocked Road",
+    description: "A fallen tree is blocking the westbound lane.",
+    location: "Danforth Road",
+    urgency: "Low",
+    status: "Responding",
+    createdAt: "2026-07-21T15:45:00.000Z",
+  },
+];
+
+export const initialNearbyResources: NearbyResource[] = [
+  {
+    id: "resource-1",
+    name: "Progress Shelter",
+    category: "Shelter",
+    distance: "3.2 km",
+    availability: "12 beds available",
+    status: "Open",
+    address: "45 Progress Avenue, Scarborough",
+  },
+  {
+    id: "resource-2",
+    name: "Community Food Bank",
+    category: "Food",
+    distance: "2.4 km",
+    availability: "Meals and dry food available",
+    status: "Limited",
+    address: "1200 Kennedy Road, Scarborough",
+  },
+  {
+    id: "resource-3",
+    name: "Emergency Water Station",
+    category: "Water",
+    distance: "1.1 km",
+    availability: "Bottled water available",
+    status: "Open",
+    address: "300 Borough Drive, Scarborough",
+  },
+  {
+    id: "resource-4",
+    name: "Mobile Community Clinic",
+    category: "Medical",
+    distance: "4.0 km",
+    availability: "First aid and wellness checks",
+    status: "Open",
+    address: "Lawrence Avenue East, Scarborough",
+  },
+];
+
+export const initialReportDraft: ReportDraft = {
+  type: "",
+  description: "",
+  location: "",
+  urgency: "",
+  photoName: "",
+};
