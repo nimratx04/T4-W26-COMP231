@@ -27,19 +27,19 @@ export default function ReporterDashboard() {
     {
       title: "Report Incident",
       description: "Report a flood, fire, power outage, or blocked road.",
-      route: "/reporter/report-incident",
+      route: "/reporters/report-incident",
       icon: "🚨",
     },
     {
       title: "My Reports",
       description: "Track pending, verified, responding, or resolved reports.",
-      route: "/reporter/my-reports",
+      route: "/reporters/my-reports",
       icon: "📋",
     },
     {
       title: "Community Alerts",
       description: "View safety notices, incident updates, and affected areas.",
-      route: "/reporter/community-alerts",
+      route: "/reporters/community-alerts",
       icon: "🔔",
     },
   ] as const;
@@ -84,7 +84,7 @@ export default function ReporterDashboard() {
       {links.map((link) => (
         <Card
           key={link.route}
-          onPress={() => router.push(link.route as any)}
+          onPress={() => router.push(link.route)}
           accentColor={ROLE_COLORS.reporter.main}
         >
           <View style={styles.linkRow}>
