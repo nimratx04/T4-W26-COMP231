@@ -34,6 +34,13 @@ const roles = [
     description: "Manage help requests and approve or reject volunteers.",
     route: "/admin",
   },
+  {
+    key: "reporter",
+    title: "Community Reporter",
+    icon: "🚨",
+    description: "Report incidents, track reports, and view community alerts.",
+    route: "/reporters",
+  },
 ] as const;
 
 export default function HomeScreen() {
@@ -47,7 +54,7 @@ export default function HomeScreen() {
         <Text style={styles.logo}>RB</Text>
         <View style={styles.heroText}>
           <Text style={styles.appName}>RescueBridge</Text>
-          <Text style={styles.tagline}>Iteration Planning 1 Prototype</Text>
+          <Text style={styles.tagline}>Iteration Planning 2 Prototype</Text>
         </View>
       </View>
 
@@ -62,7 +69,7 @@ export default function HomeScreen() {
 
       <SectionTitle
         title="Choose a role"
-        subtitle="This prototype includes only Iteration Planning 1 screens and local mock data."
+        subtitle="This prototype includes Iteration Planning 1 and 2 screens."
       />
 
       {roles.map((role) => {
@@ -92,7 +99,7 @@ export default function HomeScreen() {
       })}
 
       <Text style={styles.footer}>
-        T4M26 • COMP231 • Iteration Planning 1 • Mock-data prototype
+        T4M26 • COMP231 • Iteration Planning 2 • Supabase-connected prototype
       </Text>
     </Screen>
   );

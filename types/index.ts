@@ -79,6 +79,7 @@ export interface AlertItem {
   instructions?: string;
 }
 
+// Iteration 2 Types - Incident Reports
 export type IncidentStatus =
   | "Pending Verification"
   | "Verified"
@@ -113,4 +114,15 @@ export interface ReportDraft {
   location: string;
   urgency: Priority | "";
   photoName: string;
+}
+
+// Iteration 2 Types - Broadcast
+export interface Broadcast {
+  id: string;
+  title: string;
+  message: string;
+  target_area: string;
+  priority: Priority;
+  created_at: string;
+  sender_id?: string;
 }
