@@ -1,5 +1,5 @@
 ﻿-- RescueBridge Supabase Schema
--- Iteration Planning 1 Prototype
+-- Iteration Planning 1 & 2 Prototype
 
 create table if not exists help_requests (
   id uuid primary key default gen_random_uuid(),
@@ -57,8 +57,18 @@ create table if not exists tasks (
   created_at timestamptz default now()
 );
 
--- Prototype permissions for classroom testing only
+create table if not exists reporters (
+  id uuid primary key default gen_random_uuid(),
+  incident_type text,
+  description text,
+  location text,
+  urgency text,
+  photo_name text,
+  status text default 'Pending Verification',
+  created_at timestamptz default now()
+);
 
+-- Prototype permissions for classroom testing only
 grant usage on schema public to anon, authenticated;
 
 grant select, insert, update on table help_requests to anon, authenticated;
@@ -66,3 +76,4 @@ grant select, insert, update on table resources to anon, authenticated;
 grant select, insert, update on table organization_status to anon, authenticated;
 grant select, insert, update on table volunteers to anon, authenticated;
 grant select, insert, update on table tasks to anon, authenticated;
+grant select, insert, update on table reporters to anon, authenticated;
