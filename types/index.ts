@@ -36,6 +36,26 @@ export interface OrganizationStatusRecord {
   updatedAt: string;
 }
 
+export interface ShelterResource {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  contactNumber: string;
+  availableBeds: number;
+  totalCapacity: number;
+  foodSupport: number;
+  waterSupport: number;
+  medicalSupport: string;
+  supplies: string;
+  operatingHours: string;
+  status: OrganizationStatusValue;
+  isPublished: boolean;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
 export type VerificationStatus = "Pending" | "Verified" | "Rejected" | "Expired";
 
 export interface Volunteer {

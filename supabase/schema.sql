@@ -1,5 +1,5 @@
 ﻿-- RescueBridge Supabase Schema
--- Iteration Planning 1 Prototype
+-- Iteration Planning 1 and Iteration 2 Prototype
 
 create table if not exists help_requests (
   id uuid primary key default gen_random_uuid(),
@@ -57,6 +57,27 @@ create table if not exists tasks (
   created_at timestamptz default now()
 );
 
+create table if not exists shelters (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  address text not null,
+  city text not null,
+  contact_number text not null,
+  available_beds integer not null default 0,
+  total_capacity integer not null default 0,
+  food_support integer not null default 0,
+  water_support integer not null default 0,
+  medical_support text not null,
+  supplies text not null,
+  operating_hours text not null,
+  status text not null default 'Open',
+  is_published boolean not null default true,
+  latitude double precision not null,
+  longitude double precision not null,
+  updated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
 -- Prototype permissions for classroom testing only
 
 grant usage on schema public to anon, authenticated;
@@ -66,3 +87,4 @@ grant select, insert, update on table resources to anon, authenticated;
 grant select, insert, update on table organization_status to anon, authenticated;
 grant select, insert, update on table volunteers to anon, authenticated;
 grant select, insert, update on table tasks to anon, authenticated;
+grant select, insert, update, delete on table shelters to anon, authenticated;

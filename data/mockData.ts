@@ -6,6 +6,7 @@ import type {
   OrganizationStatusRecord,
   ReportDraft,
   ResourceAvailability,
+  ShelterResource,
   Volunteer,
   VolunteerTask,
 } from "../types";
@@ -65,6 +66,47 @@ export const initialOrganizationStatus: OrganizationStatusRecord = {
   note: "General intake is open. Families with children are prioritized tonight.",
   updatedAt: "2026-07-21T18:30:00.000Z",
 };
+
+export const initialShelters: ShelterResource[] = [
+  {
+    id: "shelter-1",
+    name: "Progress Emergency Shelter",
+    address: "45 Progress Avenue",
+    city: "Scarborough, ON",
+    contactNumber: "416-555-0145",
+    availableBeds: 12,
+    totalCapacity: 35,
+    foodSupport: 55,
+    waterSupport: 80,
+    medicalSupport: "First-aid nurse available until 10:00 PM",
+    supplies: "Blankets, hygiene kits, winter clothing, and basic supplies",
+    operatingHours: "24 hours",
+    status: "Open",
+    isPublished: true,
+    latitude: 43.7856,
+    longitude: -79.2267,
+    updatedAt: "2026-07-21T18:30:00.000Z",
+  },
+  {
+    id: "shelter-2",
+    name: "Kennedy Community Relief Centre",
+    address: "1200 Kennedy Road",
+    city: "Scarborough, ON",
+    contactNumber: "416-555-0188",
+    availableBeds: 6,
+    totalCapacity: 20,
+    foodSupport: 30,
+    waterSupport: 45,
+    medicalSupport: "Basic first aid and wellness checks",
+    supplies: "Meals, bottled water, and emergency blankets",
+    operatingHours: "8:00 AM - 11:00 PM",
+    status: "Limited",
+    isPublished: true,
+    latitude: 43.7403,
+    longitude: -79.2735,
+    updatedAt: "2026-07-21T17:50:00.000Z",
+  },
+];
 
 export const initialVolunteers: Volunteer[] = [
   {
