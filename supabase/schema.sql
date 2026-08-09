@@ -77,3 +77,47 @@ grant select, insert, update on table organization_status to anon, authenticated
 grant select, insert, update on table volunteers to anon, authenticated;
 grant select, insert, update on table tasks to anon, authenticated;
 grant select, insert, update on table reporters to anon, authenticated;
+
+-- incident_reports table
+create table if not exists incident_reports (
+  id uuid primary key default gen_random_uuid(),
+  incident_type text not null,
+  description text not null,
+  location text not null,
+  urgency text not null,
+  photo_name text,
+  status text default 'Pending Verification',
+  created_at timestamptz default now()
+);
+
+-- broadcasts table
+create table if not exists broadcasts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  message text not null,
+  target_area text not null,
+  priority text not null,
+  sender_id uuid,
+  created_at timestamptz default now()
+);
+
+-- alerts table
+create table if not exists alerts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  message text not null,
+  area text not null,
+  priority text not null,
+  type text not null,
+  instructions text,
+  created_at timestamptz default now()
+);
+
+-- Storage bucket for photos
+insert into storage.buckets (id, name) 
+values ('incident-photos', 'incident-photos')
+on conflict (id) do nothing;
+
+-- Storage policies
+create policy "Public Access" on storage.objects
+  for all using (bucket_id = 'incident-photos');
