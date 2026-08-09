@@ -38,6 +38,13 @@ export default function AdminDashboard() {
       route: "/admin/volunteer-approval",
       icon: "✅",
     },
+    {
+      title: "Incident Reports",
+      description:
+        "Inspect community incident reports and verify, reject, or update status.",
+      route: "/admin/incident-reports",
+      icon: "🚨",
+    },
   ] as const;
 
   return (
