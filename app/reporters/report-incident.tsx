@@ -15,6 +15,9 @@ import type { Priority } from "../../types";
 
 const incidentTypes = ["Flood", "Fire", "Power Outage", "Blocked Road", "Unsafe Condition", "Other"];
 const priorities: Priority[] = ["Low", "Medium", "High", "Urgent"];
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_PHOTO_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+const ALLOWED_PHOTO_EXTENSION = /\.(jpe?g|png|gif|webp)$/i;
 
 export default function ReportIncidentScreen() {
   const router = useRouter();
@@ -26,6 +29,7 @@ export default function ReportIncidentScreen() {
   const [urgency, setUrgency] = useState<Priority | "">(reportDraft.urgency || "");
   const [photoName, setPhotoName] = useState(reportDraft.photoName || "");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoMimeType, setPhotoMimeType] = useState("image/jpeg");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmation, setConfirmation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,17 +47,29 @@ export default function ReportIncidentScreen() {
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, photo: "File size must be less than 5MB." }));
+      const candidateName = asset.fileName || asset.uri.split("/").pop() || "";
+      const mimeType = (asset.mimeType || "").toLowerCase();
+      const validType =
+        (mimeType && ALLOWED_PHOTO_MIME_TYPES.has(mimeType)) ||
+        ALLOWED_PHOTO_EXTENSION.test(candidateName);
+
+      if (typeof asset.fileSize === "number" && asset.fileSize > MAX_PHOTO_BYTES) {
+        setErrors((prev) => ({ ...prev, photo: "Photo must be 5 MB or smaller." }));
         return;
       }
-      if (!asset.uri.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-        setErrors((prev) => ({ ...prev, photo: "Only image files are allowed." }));
+
+      if (!validType) {
+        setErrors((prev) => ({
+          ...prev,
+          photo: "Only JPG, JPEG, PNG, GIF, or WEBP image files are allowed.",
+        }));
         return;
       }
+
+      const fileName = candidateName || `photo-${Date.now()}.jpg`;
       setPhotoUri(asset.uri);
-      const fileName = asset.uri.split("/").pop() || `photo-${Date.now()}.jpg`;
       setPhotoName(fileName);
+      setPhotoMimeType(mimeType || (fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg"));
       updateReportDraft({ photoName: fileName });
       setErrors((prev) => ({ ...prev, photo: "" }));
     }
@@ -62,6 +78,7 @@ export default function ReportIncidentScreen() {
   const removePhoto = () => {
     setPhotoUri(null);
     setPhotoName("");
+    setPhotoMimeType("image/jpeg");
     updateReportDraft({ photoName: "" });
   };
 
@@ -82,7 +99,7 @@ export default function ReportIncidentScreen() {
         formData.append("file", {
           uri: photoUri,
           name: photoName || `photo-${Date.now()}.jpg`,
-          type: "image/jpeg",
+          type: photoMimeType,
         } as any);
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("incident-photos")
@@ -122,6 +139,7 @@ export default function ReportIncidentScreen() {
       setUrgency("");
       setPhotoName("");
       setPhotoUri(null);
+      setPhotoMimeType("image/jpeg");
       setErrors({});
     } catch (err: any) {
       console.error("CATCH ERROR:", err);
@@ -171,7 +189,7 @@ export default function ReportIncidentScreen() {
           <Pressable onPress={pickImage} style={styles.photoButton}>
             <Text style={styles.photoButtonIcon}>📷</Text>
             <Text style={styles.photoButtonText}>Tap to attach a photo</Text>
-            <Text style={styles.photoButtonSubtext}>JPG, PNG, GIF (Max 5MB)</Text>
+            <Text style={styles.photoButtonSubtext}>JPG, JPEG, PNG, GIF, WEBP (Max 5 MB)</Text>
           </Pressable>
         )}
         {errors.photo ? <Text style={styles.error}>{errors.photo}</Text> : null}
