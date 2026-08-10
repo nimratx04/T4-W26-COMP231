@@ -9,6 +9,7 @@ import {
 import {
   CURRENT_VOLUNTEER_ID,
   initialAlerts,
+  initialEmergencyResources,
   initialHelpRequests,
   initialIncidentReports,
   initialNearbyResources,
@@ -22,6 +23,8 @@ import {
 import { supabase } from "../lib/supabase";
 import type {
   AlertItem,
+  EmergencyResource,
+  EmergencyResourceCategory,
   HelpRequest,
   HelpRequestStatus,
   IncidentReport,
@@ -45,6 +48,7 @@ type VerificationSubmission = Pick<
 >;
 
 type ShelterInput = Omit<ShelterResource, "id" | "updatedAt">;
+type EmergencyResourceInput = Omit<EmergencyResource, "id" | "updatedAt">;
 
 type ShelterRow = {
   id: string;
@@ -67,6 +71,25 @@ type ShelterRow = {
   created_at?: string | null;
 };
 
+type EmergencyResourceRow = {
+  id: string;
+  name: string;
+  category: string;
+  address: string;
+  city: string;
+  contact_number: string;
+  quantity: number;
+  unit: string;
+  availability_note: string;
+  operating_hours: string;
+  status: string;
+  is_published: boolean;
+  latitude: number;
+  longitude: number;
+  updated_at: string | null;
+  created_at?: string | null;
+};
+
 type AppContextValue = {
   helpRequests: HelpRequest[];
   resources: ResourceAvailability;
@@ -74,6 +97,8 @@ type AppContextValue = {
   organizationStatus: OrganizationStatusRecord;
   shelters: ShelterResource[];
   publishedShelters: ShelterResource[];
+  emergencyResources: EmergencyResource[];
+  publishedEmergencyResources: EmergencyResource[];
   volunteers: Volunteer[];
   currentVolunteer: Volunteer;
   tasks: VolunteerTask[];
@@ -91,6 +116,13 @@ type AppContextValue = {
   updateShelter: (shelterId: string, patch: Partial<ShelterInput>) => boolean;
   deleteShelter: (shelterId: string) => boolean;
   toggleShelterPublished: (shelterId: string, isPublished: boolean) => boolean;
+  addEmergencyResource: (resource: EmergencyResourceInput) => string;
+  updateEmergencyResource: (
+    resourceId: string,
+    patch: Partial<EmergencyResourceInput>,
+  ) => boolean;
+  deleteEmergencyResource: (resourceId: string) => boolean;
+  toggleEmergencyResourcePublished: (resourceId: string, isPublished: boolean) => boolean;
   submitVolunteerVerification: (submission: VerificationSubmission) => void;
   approveVolunteer: (volunteerId: string) => void;
   rejectVolunteer: (volunteerId: string) => void;
@@ -106,6 +138,7 @@ type AppContextValue = {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 const statusOptions: OrganizationStatusValue[] = ["Open", "Limited", "Full", "Closed"];
+const emergencyResourceCategories: EmergencyResourceCategory[] = ["Food", "Water", "Medical"];
 
 const now = () => new Date().toISOString();
 
@@ -127,10 +160,25 @@ const normalizeStatus = (status: string | null | undefined): OrganizationStatusV
   return "Open";
 };
 
+const normalizeEmergencyResourceCategory = (
+  category: string | null | undefined,
+): EmergencyResourceCategory => {
+  if (emergencyResourceCategories.includes(category as EmergencyResourceCategory)) {
+    return category as EmergencyResourceCategory;
+  }
+
+  return "Food";
+};
+
 const isShelterAvailableForAffectedUsers = (shelter: ShelterResource) =>
   shelter.isPublished &&
   shelter.availableBeds > 0 &&
   (shelter.status === "Open" || shelter.status === "Limited");
+
+const isEmergencyResourceAvailableForAffectedUsers = (resource: EmergencyResource) =>
+  resource.isPublished &&
+  resource.quantity > 0 &&
+  (resource.status === "Open" || resource.status === "Limited");
 
 const mapShelterRowToResource = (row: ShelterRow): ShelterResource => ({
   id: row.id,
@@ -198,6 +246,71 @@ const mapShelterPatchToRow = (
   return row;
 };
 
+const mapEmergencyResourceRowToResource = (
+  row: EmergencyResourceRow,
+): EmergencyResource => ({
+  id: row.id,
+  name: row.name ?? "",
+  category: normalizeEmergencyResourceCategory(row.category),
+  address: row.address ?? "",
+  city: row.city ?? "",
+  contactNumber: row.contact_number ?? "",
+  quantity: Number(row.quantity ?? 0),
+  unit: row.unit ?? "",
+  availabilityNote: row.availability_note ?? "",
+  operatingHours: row.operating_hours ?? "",
+  status: normalizeStatus(row.status),
+  isPublished: Boolean(row.is_published),
+  latitude: Number(row.latitude ?? 0),
+  longitude: Number(row.longitude ?? 0),
+  updatedAt: row.updated_at ?? now(),
+});
+
+const mapEmergencyResourceInputToRow = (
+  resource: EmergencyResourceInput,
+  updatedAt: string,
+) => ({
+  name: resource.name,
+  category: resource.category,
+  address: resource.address,
+  city: resource.city,
+  contact_number: resource.contactNumber,
+  quantity: resource.quantity,
+  unit: resource.unit,
+  availability_note: resource.availabilityNote,
+  operating_hours: resource.operatingHours,
+  status: resource.status,
+  is_published: resource.isPublished,
+  latitude: resource.latitude,
+  longitude: resource.longitude,
+  updated_at: updatedAt,
+});
+
+const mapEmergencyResourcePatchToRow = (
+  patch: Partial<EmergencyResourceInput>,
+  updatedAt: string,
+): Partial<EmergencyResourceRow> => {
+  const row: Partial<EmergencyResourceRow> = {
+    updated_at: updatedAt,
+  };
+
+  if (patch.name !== undefined) row.name = patch.name;
+  if (patch.category !== undefined) row.category = patch.category;
+  if (patch.address !== undefined) row.address = patch.address;
+  if (patch.city !== undefined) row.city = patch.city;
+  if (patch.contactNumber !== undefined) row.contact_number = patch.contactNumber;
+  if (patch.quantity !== undefined) row.quantity = patch.quantity;
+  if (patch.unit !== undefined) row.unit = patch.unit;
+  if (patch.availabilityNote !== undefined) row.availability_note = patch.availabilityNote;
+  if (patch.operatingHours !== undefined) row.operating_hours = patch.operatingHours;
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.isPublished !== undefined) row.is_published = patch.isPublished;
+  if (patch.latitude !== undefined) row.latitude = patch.latitude;
+  if (patch.longitude !== undefined) row.longitude = patch.longitude;
+
+  return row;
+};
+
 export function AppProvider({ children }: PropsWithChildren) {
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>(initialHelpRequests);
   const [resources, setResources] = useState<ResourceAvailability>(initialResources);
@@ -205,6 +318,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [organizationStatus, setOrganizationStatus] =
     useState<OrganizationStatusRecord>(initialOrganizationStatus);
   const [shelters, setShelters] = useState<ShelterResource[]>(initialShelters);
+  const [emergencyResources, setEmergencyResources] =
+    useState<EmergencyResource[]>(initialEmergencyResources);
   const [volunteers, setVolunteers] = useState<Volunteer[]>(initialVolunteers);
   const [tasks, setTasks] = useState<VolunteerTask[]>(initialTasks);
   const [alerts, setAlerts] = useState<AlertItem[]>(initialAlerts);
@@ -233,7 +348,28 @@ export function AppProvider({ children }: PropsWithChildren) {
       setShelters((data as ShelterRow[]).map(mapShelterRowToResource));
     };
 
+    const loadEmergencyResourcesFromSupabase = async () => {
+      const { data, error } = await supabase
+        .from("emergency_resources")
+        .select("*")
+        .order("updated_at", { ascending: false });
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        console.warn("Could not load emergency resources from Supabase:", error.message);
+        return;
+      }
+
+      setEmergencyResources(
+        (data as EmergencyResourceRow[]).map(mapEmergencyResourceRowToResource),
+      );
+    };
+
     loadSheltersFromSupabase();
+    loadEmergencyResourcesFromSupabase();
 
     return () => {
       isMounted = false;
@@ -246,6 +382,11 @@ export function AppProvider({ children }: PropsWithChildren) {
   const publishedShelters = useMemo(
     () => shelters.filter(isShelterAvailableForAffectedUsers),
     [shelters],
+  );
+
+  const publishedEmergencyResources = useMemo(
+    () => emergencyResources.filter(isEmergencyResourceAvailableForAffectedUsers),
+    [emergencyResources],
   );
 
   const addHelpRequest = (request: NewHelpRequest) => {
@@ -422,6 +563,127 @@ export function AppProvider({ children }: PropsWithChildren) {
     return updateShelter(shelterId, { isPublished });
   };
 
+  const addEmergencyResource = (resource: EmergencyResourceInput) => {
+    const timestamp = now();
+    const id = makeUuid();
+
+    const optimisticResource: EmergencyResource = {
+      ...resource,
+      id,
+      updatedAt: timestamp,
+    };
+
+    setEmergencyResources((current) => [optimisticResource, ...current]);
+
+    supabase
+      .from("emergency_resources")
+      .insert({
+        id,
+        ...mapEmergencyResourceInputToRow(resource, timestamp),
+      })
+      .select("*")
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn("Could not add emergency resource to Supabase:", error.message);
+          setEmergencyResources((current) => current.filter((item) => item.id !== id));
+          return;
+        }
+
+        if (data) {
+          setEmergencyResources((current) =>
+            current.map((item) =>
+              item.id === id
+                ? mapEmergencyResourceRowToResource(data as EmergencyResourceRow)
+                : item,
+            ),
+          );
+        }
+      });
+
+    return id;
+  };
+
+  const updateEmergencyResource = (
+    resourceId: string,
+    patch: Partial<EmergencyResourceInput>,
+  ) => {
+    const existingResource = emergencyResources.find((resource) => resource.id === resourceId);
+
+    if (!existingResource) {
+      return false;
+    }
+
+    const timestamp = now();
+
+    setEmergencyResources((current) =>
+      current.map((resource) =>
+        resource.id === resourceId
+          ? { ...resource, ...patch, updatedAt: timestamp }
+          : resource,
+      ),
+    );
+
+    supabase
+      .from("emergency_resources")
+      .update(mapEmergencyResourcePatchToRow(patch, timestamp))
+      .eq("id", resourceId)
+      .select("*")
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn("Could not update emergency resource in Supabase:", error.message);
+          setEmergencyResources((current) =>
+            current.map((resource) =>
+              resource.id === resourceId ? existingResource : resource,
+            ),
+          );
+          return;
+        }
+
+        if (data) {
+          setEmergencyResources((current) =>
+            current.map((resource) =>
+              resource.id === resourceId
+                ? mapEmergencyResourceRowToResource(data as EmergencyResourceRow)
+                : resource,
+            ),
+          );
+        }
+      });
+
+    return true;
+  };
+
+  const deleteEmergencyResource = (resourceId: string) => {
+    const existingResource = emergencyResources.find((resource) => resource.id === resourceId);
+
+    if (!existingResource) {
+      return false;
+    }
+
+    setEmergencyResources((current) =>
+      current.filter((resource) => resource.id !== resourceId),
+    );
+
+    supabase
+      .from("emergency_resources")
+      .delete()
+      .eq("id", resourceId)
+      .then(({ error }) => {
+        if (error) {
+          console.warn("Could not delete emergency resource from Supabase:", error.message);
+          setEmergencyResources((current) => [existingResource, ...current]);
+        }
+      });
+
+    return true;
+  };
+
+  const toggleEmergencyResourcePublished = (resourceId: string, isPublished: boolean) => {
+    return updateEmergencyResource(resourceId, { isPublished });
+  };
+
   const submitVolunteerVerification = (submission: VerificationSubmission) => {
     setVolunteers((current) =>
       current.map((volunteer) =>
@@ -562,6 +824,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       organizationStatus,
       shelters,
       publishedShelters,
+      emergencyResources,
+      publishedEmergencyResources,
       volunteers,
       currentVolunteer,
       tasks,
@@ -579,6 +843,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       updateShelter,
       deleteShelter,
       toggleShelterPublished,
+      addEmergencyResource,
+      updateEmergencyResource,
+      deleteEmergencyResource,
+      toggleEmergencyResourcePublished,
       submitVolunteerVerification,
       approveVolunteer,
       rejectVolunteer,
@@ -593,9 +861,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     [
       alerts,
       currentVolunteer,
+      emergencyResources,
       helpRequests,
       incidentReports,
       organizationStatus,
+      publishedEmergencyResources,
       publishedShelters,
       reportDraft,
       resourceDraft,

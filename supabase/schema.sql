@@ -78,6 +78,25 @@ create table if not exists shelters (
   created_at timestamptz default now()
 );
 
+create table if not exists emergency_resources (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null check (category in ('Food', 'Water', 'Medical')),
+  address text not null,
+  city text not null,
+  contact_number text not null,
+  quantity integer not null default 0,
+  unit text not null,
+  availability_note text not null,
+  operating_hours text not null,
+  status text not null default 'Open' check (status in ('Open', 'Limited', 'Full', 'Closed')),
+  is_published boolean not null default true,
+  latitude double precision not null,
+  longitude double precision not null,
+  updated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
 -- Prototype permissions for classroom testing only
 
 grant usage on schema public to anon, authenticated;
@@ -88,3 +107,4 @@ grant select, insert, update on table organization_status to anon, authenticated
 grant select, insert, update on table volunteers to anon, authenticated;
 grant select, insert, update on table tasks to anon, authenticated;
 grant select, insert, update, delete on table shelters to anon, authenticated;
+grant select, insert, update, delete on table emergency_resources to anon, authenticated;

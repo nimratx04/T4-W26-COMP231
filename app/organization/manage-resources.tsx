@@ -12,19 +12,21 @@ import SelectOption from "../../components/SelectOption";
 import StatusBadge from "../../components/StatusBadge";
 import { COLORS, FONT_SIZE, ROLE_COLORS, SPACING } from "../../constants/theme";
 import { useAppContext } from "../../context/AppContext";
-import type { OrganizationStatusValue, ShelterResource } from "../../types";
+import type {
+  EmergencyResource,
+  EmergencyResourceCategory,
+  OrganizationStatusValue,
+} from "../../types";
 
-type ShelterForm = {
+type ResourceForm = {
   name: string;
+  category: EmergencyResourceCategory;
   address: string;
   city: string;
   contactNumber: string;
-  availableBeds: string;
-  totalCapacity: string;
-  foodSupport: string;
-  waterSupport: string;
-  medicalSupport: string;
-  supplies: string;
+  quantity: string;
+  unit: string;
+  availabilityNote: string;
   operatingHours: string;
   status: OrganizationStatusValue;
   isPublished: boolean;
@@ -45,19 +47,18 @@ type NominatimResult = {
   display_name?: string;
 };
 
+const categories: EmergencyResourceCategory[] = ["Food", "Water", "Medical"];
 const statuses: OrganizationStatusValue[] = ["Open", "Limited", "Full", "Closed"];
 
-const blankForm: ShelterForm = {
+const blankForm: ResourceForm = {
   name: "",
+  category: "Food",
   address: "",
   city: "Scarborough, ON",
   contactNumber: "",
-  availableBeds: "0",
-  totalCapacity: "0",
-  foodSupport: "0",
-  waterSupport: "0",
-  medicalSupport: "",
-  supplies: "",
+  quantity: "0",
+  unit: "items",
+  availabilityNote: "",
   operatingHours: "24 hours",
   status: "Open",
   isPublished: true,
@@ -65,23 +66,34 @@ const blankForm: ShelterForm = {
   longitude: "-79.2267",
 };
 
-const getFormFromShelter = (shelter: ShelterResource): ShelterForm => ({
-  name: shelter.name,
-  address: shelter.address,
-  city: shelter.city,
-  contactNumber: shelter.contactNumber,
-  availableBeds: String(shelter.availableBeds),
-  totalCapacity: String(shelter.totalCapacity),
-  foodSupport: String(shelter.foodSupport),
-  waterSupport: String(shelter.waterSupport),
-  medicalSupport: shelter.medicalSupport,
-  supplies: shelter.supplies,
-  operatingHours: shelter.operatingHours,
-  status: shelter.status,
-  isPublished: shelter.isPublished,
-  latitude: String(shelter.latitude),
-  longitude: String(shelter.longitude),
+const getFormFromResource = (resource: EmergencyResource): ResourceForm => ({
+  name: resource.name,
+  category: resource.category,
+  address: resource.address,
+  city: resource.city,
+  contactNumber: resource.contactNumber,
+  quantity: String(resource.quantity),
+  unit: resource.unit,
+  availabilityNote: resource.availabilityNote,
+  operatingHours: resource.operatingHours,
+  status: resource.status,
+  isPublished: resource.isPublished,
+  latitude: String(resource.latitude),
+  longitude: String(resource.longitude),
 });
+
+const getCategoryIcon = (category: EmergencyResourceCategory) => {
+  switch (category) {
+    case "Food":
+      return "🍽️";
+    case "Water":
+      return "💧";
+    case "Medical":
+      return "🏥";
+    default:
+      return "📦";
+  }
+};
 
 const parseNonNegativeNumber = (value: string) => {
   const numberValue = Number(value);
@@ -131,7 +143,7 @@ const findCoordinatesForAddress = async (
         };
       }
     } catch {
-      // Try OpenStreetMap fallback.
+      // Try the next method.
     }
   }
 
@@ -173,101 +185,67 @@ const findCoordinatesForAddress = async (
   return null;
 };
 
-export default function ManageSheltersScreen() {
+export default function ManageResourcesScreen() {
   const router = useRouter();
   const {
-    shelters,
-    publishedShelters,
-    addShelter,
-    updateShelter,
-    deleteShelter,
-    toggleShelterPublished,
+    emergencyResources,
+    publishedEmergencyResources,
+    addEmergencyResource,
+    updateEmergencyResource,
+    deleteEmergencyResource,
+    toggleEmergencyResourcePublished,
   } = useAppContext();
 
-  const [editingShelterId, setEditingShelterId] = useState<string | null>(null);
-  const [form, setForm] = useState<ShelterForm>(blankForm);
+  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
+  const [form, setForm] = useState<ResourceForm>(blankForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmation, setConfirmation] = useState("");
   const [isFindingCoordinates, setIsFindingCoordinates] = useState(false);
 
-  const editingShelter = useMemo(
-    () => shelters.find((shelter) => shelter.id === editingShelterId) ?? null,
-    [editingShelterId, shelters],
+  const editingResource = useMemo(
+    () => emergencyResources.find((resource) => resource.id === editingResourceId) ?? null,
+    [editingResourceId, emergencyResources],
   );
 
-  const updateField = <K extends keyof ShelterForm>(field: K, value: ShelterForm[K]) => {
+  const updateField = <K extends keyof ResourceForm>(field: K, value: ResourceForm[K]) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: "" }));
     setConfirmation("");
   };
 
   const resetForm = () => {
-    setEditingShelterId(null);
+    setEditingResourceId(null);
     setForm(blankForm);
     setErrors({});
     setConfirmation("");
   };
 
-  const startEditing = (shelter: ShelterResource) => {
-    setEditingShelterId(shelter.id);
-    setForm(getFormFromShelter(shelter));
+  const startEditing = (resource: EmergencyResource) => {
+    setEditingResourceId(resource.id);
+    setForm(getFormFromResource(resource));
     setErrors({});
-    setConfirmation(`Editing ${shelter.name}.`);
+    setConfirmation(`Editing ${resource.name}.`);
   };
 
   const validateForm = () => {
     const nextErrors: Record<string, string> = {};
 
-    const availableBeds = parseNonNegativeNumber(form.availableBeds);
-    const totalCapacity = parseNonNegativeNumber(form.totalCapacity);
-    const foodSupport = parseNonNegativeNumber(form.foodSupport);
-    const waterSupport = parseNonNegativeNumber(form.waterSupport);
+    const quantity = parseNonNegativeNumber(form.quantity);
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
 
-    if (!form.name.trim()) {
-      nextErrors.name = "Enter the shelter name.";
+    if (!form.name.trim()) nextErrors.name = "Enter the resource name.";
+    if (!form.address.trim()) nextErrors.address = "Enter the resource address.";
+    if (!form.city.trim()) nextErrors.city = "Enter the city or area.";
+    if (!form.contactNumber.trim()) nextErrors.contactNumber = "Enter a contact number.";
+    if (quantity === null) nextErrors.quantity = "Enter zero or a positive number.";
+
+    if (!form.unit.trim()) {
+      nextErrors.unit = "Enter the unit, for example bottles, meal kits, or care slots.";
     }
 
-    if (!form.address.trim()) {
-      nextErrors.address = "Enter the shelter address.";
-    }
-
-    if (!form.city.trim()) {
-      nextErrors.city = "Enter the city or area.";
-    }
-
-    if (!form.contactNumber.trim()) {
-      nextErrors.contactNumber = "Enter a contact number.";
-    }
-
-    if (availableBeds === null) {
-      nextErrors.availableBeds = "Enter zero or a positive number.";
-    }
-
-    if (totalCapacity === null || (availableBeds !== null && totalCapacity < availableBeds)) {
-      nextErrors.totalCapacity = "Capacity must be equal to or greater than available beds.";
-    }
-
-    if (foodSupport === null) {
-      nextErrors.foodSupport = "Enter zero or a positive number.";
-    }
-
-    if (waterSupport === null) {
-      nextErrors.waterSupport = "Enter zero or a positive number.";
-    }
-
-    if (!form.medicalSupport.trim()) {
-      nextErrors.medicalSupport = "Enter medical support details or None.";
-    }
-
-    if (!form.supplies.trim()) {
-      nextErrors.supplies = "Enter supplies details or None.";
-    }
-
-    if (!form.operatingHours.trim()) {
-      nextErrors.operatingHours = "Enter operating hours.";
-    }
+    if (!form.availabilityNote.trim()) nextErrors.availabilityNote = "Enter availability details.";
+    if (!form.operatingHours.trim()) nextErrors.operatingHours = "Enter operating hours.";
 
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
       nextErrors.latitude = "Enter a valid latitude between -90 and 90.";
@@ -279,21 +257,17 @@ export default function ManageSheltersScreen() {
 
     setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0) {
-      return null;
-    }
+    if (Object.keys(nextErrors).length > 0) return null;
 
     return {
       name: form.name.trim(),
+      category: form.category,
       address: form.address.trim(),
       city: form.city.trim(),
       contactNumber: form.contactNumber.trim(),
-      availableBeds: availableBeds ?? 0,
-      totalCapacity: totalCapacity ?? 0,
-      foodSupport: foodSupport ?? 0,
-      waterSupport: waterSupport ?? 0,
-      medicalSupport: form.medicalSupport.trim(),
-      supplies: form.supplies.trim(),
+      quantity: quantity ?? 0,
+      unit: form.unit.trim(),
+      availabilityNote: form.availabilityNote.trim(),
       operatingHours: form.operatingHours.trim(),
       status: form.status,
       isPublished: form.isPublished,
@@ -309,11 +283,11 @@ export default function ManageSheltersScreen() {
     if (!address || !city) {
       setErrors((current) => ({
         ...current,
-        ...(address ? {} : { address: "Enter the shelter address first." }),
+        ...(address ? {} : { address: "Enter the street address first." }),
         ...(city ? {} : { city: "Enter the city or area first." }),
       }));
 
-      setConfirmation("Enter the shelter address and city before finding coordinates.");
+      setConfirmation("Enter the address and city before finding coordinates.");
       return;
     }
 
@@ -325,7 +299,7 @@ export default function ManageSheltersScreen() {
 
       if (!coordinateResult) {
         setConfirmation(
-          "No coordinates were found. Try writing the full address like: 45 Progress Avenue, Scarborough, ON, Canada.",
+          "No coordinates were found. Try writing the full address like: 1200 Kennedy Road, Scarborough, ON, Canada.",
         );
         return;
       }
@@ -356,129 +330,140 @@ export default function ManageSheltersScreen() {
     }
   };
 
-  const saveShelter = () => {
-    const validatedShelter = validateForm();
+  const saveResource = () => {
+    const validatedResource = validateForm();
 
-    if (!validatedShelter) {
-      return;
-    }
+    if (!validatedResource) return;
 
-    if (editingShelterId) {
-      const updated = updateShelter(editingShelterId, validatedShelter);
+    if (editingResourceId) {
+      const updated = updateEmergencyResource(editingResourceId, validatedResource);
 
       if (updated) {
-        setConfirmation(`${validatedShelter.name} was updated successfully.`);
-        setEditingShelterId(null);
+        setConfirmation(`${validatedResource.name} was updated successfully.`);
+        setEditingResourceId(null);
         setForm(blankForm);
       } else {
-        setConfirmation("Shelter could not be found for updating.");
+        setConfirmation("Resource could not be found for updating.");
       }
 
       return;
     }
 
-    addShelter(validatedShelter);
-    setConfirmation(`${validatedShelter.name} was added and saved.`);
+    addEmergencyResource(validatedResource);
+    setConfirmation(`${validatedResource.name} was added and saved.`);
     setForm(blankForm);
   };
 
-  const deleteShelterNow = (shelter: ShelterResource) => {
-    const deleted = deleteShelter(shelter.id);
+  const deleteResourceNow = (resource: EmergencyResource) => {
+    const deleted = deleteEmergencyResource(resource.id);
 
     if (!deleted) {
-      setConfirmation("Shelter could not be found for deleting.");
+      setConfirmation("Resource could not be found for deleting.");
       return;
     }
 
-    if (editingShelterId === shelter.id) {
+    if (editingResourceId === resource.id) {
       resetForm();
     }
 
-    setConfirmation(`${shelter.name} was deleted.`);
+    setConfirmation(`${resource.name} was deleted.`);
   };
 
-  const confirmDelete = (shelter: ShelterResource) => {
+  const confirmDelete = (resource: EmergencyResource) => {
     if (Platform.OS === "web") {
       const confirmed = window.confirm(
-        `Delete ${shelter.name}? This will remove it from RescueBridge shelter availability.`,
+        `Delete ${resource.name}? This will remove it from RescueBridge resource availability.`,
       );
 
       if (confirmed) {
-        deleteShelterNow(shelter);
+        deleteResourceNow(resource);
       }
 
       return;
     }
 
     Alert.alert(
-      "Delete shelter?",
-      `This will remove ${shelter.name} from RescueBridge shelter availability.`,
+      "Delete resource?",
+      `This will remove ${resource.name} from RescueBridge resource availability.`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteShelterNow(shelter),
+          onPress: () => deleteResourceNow(resource),
         },
       ],
     );
   };
 
-  const togglePublish = (shelter: ShelterResource) => {
-    const nextPublishedState = !shelter.isPublished;
-    toggleShelterPublished(shelter.id, nextPublishedState);
+  const togglePublish = (resource: EmergencyResource) => {
+    const nextPublishedState = !resource.isPublished;
+    toggleEmergencyResourcePublished(resource.id, nextPublishedState);
 
     setConfirmation(
-      `${shelter.name} is now ${nextPublishedState ? "published" : "hidden"}.`,
+      `${resource.name} is now ${nextPublishedState ? "published" : "hidden"}.`,
     );
   };
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: "Manage Shelters" }} />
+      <Stack.Screen options={{ title: "Manage Resources" }} />
 
       <SectionTitle
-        title="Manage RescueBridge Shelters"
-        subtitle="Add, update, publish, hide, or delete shelters that affected individuals can see during an emergency."
+        title="Manage Emergency Resources"
+        subtitle="Add, update, publish, hide, or delete food, water, and medical resources shown to affected users."
       />
 
       <View style={styles.summaryRow}>
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{shelters.length}</Text>
-          <Text style={styles.summaryLabel}>Total shelters</Text>
+          <Text style={styles.summaryNumber}>{emergencyResources.length}</Text>
+          <Text style={styles.summaryLabel}>Total resources</Text>
         </Card>
 
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{publishedShelters.length}</Text>
+          <Text style={styles.summaryNumber}>{publishedEmergencyResources.length}</Text>
           <Text style={styles.summaryLabel}>Visible to users</Text>
         </Card>
 
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryNumber}>
-            {shelters.reduce((total, shelter) => total + shelter.availableBeds, 0)}
+            {emergencyResources.reduce((total, resource) => total + resource.quantity, 0)}
           </Text>
-          <Text style={styles.summaryLabel}>Beds listed</Text>
+          <Text style={styles.summaryLabel}>Units listed</Text>
         </Card>
       </View>
 
       <Card accentColor={ROLE_COLORS.organization.main} style={styles.formCard}>
         <Text style={styles.formTitle}>
-          {editingShelter ? `Editing: ${editingShelter.name}` : "Add or update shelter"}
+          {editingResource ? `Editing: ${editingResource.name}` : "Add or update resource"}
         </Text>
 
         <FormInput
-          label="Shelter name"
+          label="Resource name"
           required
-          placeholder="Example: Progress Emergency Shelter"
+          placeholder="Example: Emergency Water Station"
           value={form.name}
           onChangeText={(value) => updateField("name", value)}
           error={errors.name}
         />
 
+        <Text style={styles.groupLabel}>Resource category</Text>
+        <View style={styles.statusGrid}>
+          {categories.map((category) => (
+            <View key={category} style={styles.statusItem}>
+              <SelectOption
+                label={`${getCategoryIcon(category)} ${category}`}
+                selected={form.category === category}
+                onPress={() => updateField("category", category)}
+              />
+            </View>
+          ))}
+        </View>
+
         <FormInput
           label="Street address"
           required
-          placeholder="Example: 45 Progress Avenue"
+          placeholder="Example: 300 Borough Drive"
           value={form.address}
           onChangeText={(value) => updateField("address", value)}
           error={errors.address}
@@ -494,10 +479,10 @@ export default function ManageSheltersScreen() {
         />
 
         <Card accentColor={COLORS.info} style={styles.coordinateHelperCard}>
-          <Text style={styles.coordinateHelperTitle}>Shelter coordinates</Text>
+          <Text style={styles.coordinateHelperTitle}>Location coordinates</Text>
           <Text style={styles.coordinateHelperText}>
-            Enter the shelter address and city, then tap the button to fill latitude and
-            longitude automatically.
+            Enter the street address and city, then tap the button to fill latitude and longitude
+            automatically.
           </Text>
 
           <AppButton
@@ -511,7 +496,7 @@ export default function ManageSheltersScreen() {
         <FormInput
           label="Contact number"
           required
-          placeholder="Example: 416-555-0145"
+          placeholder="Example: 416-555-0199"
           value={form.contactNumber}
           onChangeText={(value) => updateField("contactNumber", value)}
           keyboardType="phone-pad"
@@ -521,69 +506,35 @@ export default function ManageSheltersScreen() {
         <View style={styles.twoColumn}>
           <View style={styles.half}>
             <FormInput
-              label="Available beds"
+              label="Quantity"
               required
-              value={form.availableBeds}
-              onChangeText={(value) => updateField("availableBeds", value)}
+              value={form.quantity}
+              onChangeText={(value) => updateField("quantity", value)}
               keyboardType="numeric"
-              error={errors.availableBeds}
+              error={errors.quantity}
             />
           </View>
 
           <View style={styles.half}>
             <FormInput
-              label="Total capacity"
+              label="Unit"
               required
-              value={form.totalCapacity}
-              onChangeText={(value) => updateField("totalCapacity", value)}
-              keyboardType="numeric"
-              error={errors.totalCapacity}
-            />
-          </View>
-        </View>
-
-        <View style={styles.twoColumn}>
-          <View style={styles.half}>
-            <FormInput
-              label="Food units"
-              required
-              value={form.foodSupport}
-              onChangeText={(value) => updateField("foodSupport", value)}
-              keyboardType="numeric"
-              error={errors.foodSupport}
-            />
-          </View>
-
-          <View style={styles.half}>
-            <FormInput
-              label="Water units"
-              required
-              value={form.waterSupport}
-              onChangeText={(value) => updateField("waterSupport", value)}
-              keyboardType="numeric"
-              error={errors.waterSupport}
+              placeholder="bottles / meal kits / care slots"
+              value={form.unit}
+              onChangeText={(value) => updateField("unit", value)}
+              error={errors.unit}
             />
           </View>
         </View>
 
         <FormInput
-          label="Medical support"
+          label="Availability note"
           required
-          placeholder="Example: First-aid nurse available until 10 PM"
-          value={form.medicalSupport}
-          onChangeText={(value) => updateField("medicalSupport", value)}
+          placeholder="Example: Bottled water available for pickup."
+          value={form.availabilityNote}
+          onChangeText={(value) => updateField("availabilityNote", value)}
           multiline
-          error={errors.medicalSupport}
-        />
-
-        <FormInput
-          label="Supplies"
-          required
-          placeholder="Example: Blankets, hygiene kits, winter clothing"
-          value={form.supplies}
-          onChangeText={(value) => updateField("supplies", value)}
-          multiline
-          error={errors.supplies}
+          error={errors.availabilityNote}
         />
 
         <FormInput
@@ -595,7 +546,7 @@ export default function ManageSheltersScreen() {
           error={errors.operatingHours}
         />
 
-        <Text style={styles.groupLabel}>Shelter status</Text>
+        <Text style={styles.groupLabel}>Resource status</Text>
         <View style={styles.statusGrid}>
           {statuses.map((status) => (
             <View key={status} style={styles.statusItem}>
@@ -613,7 +564,7 @@ export default function ManageSheltersScreen() {
           <View style={styles.statusItem}>
             <SelectOption
               label="Published"
-              description="Affected users can see this shelter if beds are available."
+              description="Affected users can see this resource if quantity is available."
               selected={form.isPublished}
               onPress={() => updateField("isPublished", true)}
             />
@@ -622,7 +573,7 @@ export default function ManageSheltersScreen() {
           <View style={styles.statusItem}>
             <SelectOption
               label="Draft / Hidden"
-              description="Keep this shelter hidden from affected users."
+              description="Keep this resource hidden from affected users."
               selected={!form.isPublished}
               onPress={() => updateField("isPublished", false)}
             />
@@ -660,96 +611,93 @@ export default function ManageSheltersScreen() {
         ) : null}
 
         <AppButton
-          title={editingShelterId ? "Save Shelter Changes" : "Add Shelter"}
-          onPress={saveShelter}
+          title={editingResourceId ? "Save Resource Changes" : "Add Resource"}
+          onPress={saveResource}
           variant="success"
         />
 
-        {editingShelterId ? (
+        {editingResourceId ? (
           <AppButton title="Cancel Editing" onPress={resetForm} variant="outline" />
         ) : null}
       </Card>
 
       <SectionTitle
-        title="Current Shelter Records"
-        subtitle="Only published shelters with available beds and Open/Limited status appear to affected individuals."
+        title="Current Resource Records"
+        subtitle="Only published resources with quantity available and Open/Limited status appear to affected individuals."
       />
 
-      {shelters.length === 0 ? (
+      {emergencyResources.length === 0 ? (
         <EmptyState
-          icon="🏠"
-          title="No shelters added"
-          message="Add a shelter above so affected individuals can find it during an emergency."
+          icon="📦"
+          title="No resources added"
+          message="Add a food, water, or medical resource above so affected individuals can find it during an emergency."
         />
       ) : (
-        shelters.map((shelter) => (
+        emergencyResources.map((resource) => (
           <Card
-            key={shelter.id}
-            accentColor={shelter.isPublished ? COLORS.success : COLORS.disabled}
+            key={resource.id}
+            accentColor={resource.isPublished ? COLORS.success : COLORS.disabled}
           >
-            <View style={styles.shelterHeader}>
-              <View style={styles.shelterTitleWrap}>
-                <Text style={styles.shelterName}>{shelter.name}</Text>
-                <Text style={styles.shelterAddress}>
-                  {shelter.address}, {shelter.city}
+            <View style={styles.resourceHeader}>
+              <Text style={styles.resourceIcon}>{getCategoryIcon(resource.category)}</Text>
+
+              <View style={styles.resourceTitleWrap}>
+                <Text style={styles.resourceName}>{resource.name}</Text>
+                <Text style={styles.resourceAddress}>
+                  {resource.address}, {resource.city}
                 </Text>
               </View>
 
               <View style={styles.badges}>
-                <StatusBadge label={shelter.status} />
-                <StatusBadge label={shelter.isPublished ? "Published" : "Hidden"} />
+                <StatusBadge label={resource.status} />
+                <StatusBadge label={resource.isPublished ? "Published" : "Hidden"} />
               </View>
             </View>
 
             <View style={styles.detailGrid}>
               <View style={styles.detailBox}>
-                <Text style={styles.detailLabel}>Available beds</Text>
-                <Text style={styles.detailValue}>{shelter.availableBeds}</Text>
+                <Text style={styles.detailLabel}>Category</Text>
+                <Text style={styles.detailValue}>{resource.category}</Text>
               </View>
 
               <View style={styles.detailBox}>
-                <Text style={styles.detailLabel}>Capacity</Text>
-                <Text style={styles.detailValue}>{shelter.totalCapacity}</Text>
+                <Text style={styles.detailLabel}>Quantity</Text>
+                <Text style={styles.detailValue}>
+                  {resource.quantity} {resource.unit}
+                </Text>
               </View>
 
               <View style={styles.detailBox}>
-                <Text style={styles.detailLabel}>Food</Text>
-                <Text style={styles.detailValue}>{shelter.foodSupport}</Text>
-              </View>
-
-              <View style={styles.detailBox}>
-                <Text style={styles.detailLabel}>Water</Text>
-                <Text style={styles.detailValue}>{shelter.waterSupport}</Text>
+                <Text style={styles.detailLabel}>Contact</Text>
+                <Text style={styles.detailValue}>{resource.contactNumber}</Text>
               </View>
             </View>
 
-            <Text style={styles.detailText}>Medical: {shelter.medicalSupport}</Text>
-            <Text style={styles.detailText}>Supplies: {shelter.supplies}</Text>
-            <Text style={styles.detailText}>Contact: {shelter.contactNumber}</Text>
-            <Text style={styles.detailText}>Hours: {shelter.operatingHours}</Text>
+            <Text style={styles.detailText}>Availability: {resource.availabilityNote}</Text>
+            <Text style={styles.detailText}>Hours: {resource.operatingHours}</Text>
             <Text style={styles.detailText}>
-              Coordinates: {shelter.latitude}, {shelter.longitude}
+              Coordinates: {resource.latitude}, {resource.longitude}
             </Text>
-            <Text style={styles.updatedText}>Updated: {formatDateTime(shelter.updatedAt)}</Text>
+            <Text style={styles.updatedText}>Updated: {formatDateTime(resource.updatedAt)}</Text>
 
             <View style={styles.actionRow}>
               <AppButton
                 title="Edit"
-                onPress={() => startEditing(shelter)}
+                onPress={() => startEditing(resource)}
                 variant="secondary"
                 style={styles.actionButton}
               />
 
               <AppButton
-                title={shelter.isPublished ? "Hide" : "Publish"}
-                onPress={() => togglePublish(shelter)}
+                title={resource.isPublished ? "Hide" : "Publish"}
+                onPress={() => togglePublish(resource)}
                 variant="outline"
                 style={styles.actionButton}
               />
 
               <AppButton
                 title="Delete"
-                onPress={() => confirmDelete(shelter)}
+                onPress={() => confirmDelete(resource)}
                 variant="danger"
                 style={styles.actionButton}
               />
@@ -759,8 +707,8 @@ export default function ManageSheltersScreen() {
       )}
 
       <AppButton
-        title="View Affected Shelter Screen"
-        onPress={() => router.push("/affected/nearby-shelters" as any)}
+        title="View Affected Resources Screen"
+        onPress={() => router.push("/affected/resources" as any)}
         variant="secondary"
       />
 
@@ -853,21 +801,24 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     fontWeight: "800",
   },
-  shelterHeader: {
+  resourceHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: SPACING.md,
   },
-  shelterTitleWrap: {
+  resourceIcon: {
+    fontSize: 30,
+  },
+  resourceTitleWrap: {
     flex: 1,
   },
-  shelterName: {
+  resourceName: {
     color: COLORS.text,
     fontSize: FONT_SIZE.lg,
     fontWeight: "900",
   },
-  shelterAddress: {
+  resourceAddress: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.sm,
     lineHeight: 19,
@@ -900,7 +851,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     color: COLORS.text,
-    fontSize: FONT_SIZE.lg,
+    fontSize: FONT_SIZE.sm,
     fontWeight: "900",
     marginTop: SPACING.xs,
   },

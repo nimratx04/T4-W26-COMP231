@@ -9,7 +9,8 @@ import { useAppContext } from "../../context/AppContext";
 
 export default function AffectedDashboard() {
   const router = useRouter();
-  const { alerts, helpRequests, publishedShelters } = useAppContext();
+  const { alerts, helpRequests, publishedShelters, publishedEmergencyResources } =
+    useAppContext();
 
   const openCount = helpRequests.filter((item) => item.status !== "Resolved").length;
   const resolvedCount = helpRequests.filter((item) => item.status === "Resolved").length;
@@ -18,6 +19,8 @@ export default function AffectedDashboard() {
     (total, shelter) => total + shelter.availableBeds,
     0,
   );
+
+  const totalResourceCount = publishedEmergencyResources.length + publishedShelters.length;
 
   const links = [
     {
@@ -33,6 +36,12 @@ export default function AffectedDashboard() {
       icon: "📋",
     },
     {
+      title: "Resources",
+      description: "Filter published emergency resources by food, water, medical, or shelter type.",
+      route: "/affected/resources",
+      icon: "📦",
+    },
+    {
       title: "Nearby Shelters",
       description: "View only shelters published as available inside RescueBridge.",
       route: "/affected/nearby-shelters",
@@ -46,7 +55,7 @@ export default function AffectedDashboard() {
 
       <SectionTitle
         title="Affected Individual Dashboard"
-        subtitle="Submit urgent needs, track requests, and view available shelters published through RescueBridge."
+        subtitle="Submit urgent needs, track requests, and view available resources published through RescueBridge."
       />
 
       <View style={styles.summaryRow}>
@@ -70,16 +79,16 @@ export default function AffectedDashboard() {
         <View style={styles.inline}>
           <StatusBadge label="Iteration 2" />
           <Text style={styles.priorityText}>
-            Nearby shelter results now come only from RescueBridge organization-published shelter records.
+            Affected users can now filter resources that organization staff publish in RescueBridge.
           </Text>
         </View>
       </Card>
 
       <View style={styles.resourceSummary}>
         <Card style={styles.resourceCard}>
-          <Text style={styles.resourceIcon}>🏠</Text>
-          <Text style={styles.resourceNumber}>{publishedShelters.length}</Text>
-          <Text style={styles.resourceLabel}>Published shelters</Text>
+          <Text style={styles.resourceIcon}>📦</Text>
+          <Text style={styles.resourceNumber}>{totalResourceCount}</Text>
+          <Text style={styles.resourceLabel}>Published resources</Text>
         </Card>
 
         <Card style={styles.resourceCard}>

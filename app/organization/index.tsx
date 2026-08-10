@@ -9,8 +9,15 @@ import { useAppContext } from "../../context/AppContext";
 
 export default function OrganizationDashboard() {
   const router = useRouter();
-  const { resources, organizationStatus, resourceDraft, shelters, publishedShelters } =
-    useAppContext();
+  const {
+    resources,
+    organizationStatus,
+    resourceDraft,
+    shelters,
+    publishedShelters,
+    emergencyResources,
+    publishedEmergencyResources,
+  } = useAppContext();
 
   const links = [
     {
@@ -36,6 +43,12 @@ export default function OrganizationDashboard() {
       description: "Add, edit, publish, hide, or delete shelters shown to affected users.",
       route: "/organization/manage-shelters",
       icon: "🏠",
+    },
+    {
+      title: "Manage Resources",
+      description: "Add, edit, publish, hide, or delete food, water, and medical resources.",
+      route: "/organization/manage-resources",
+      icon: "🧰",
     },
   ] as const;
 
@@ -65,11 +78,33 @@ export default function OrganizationDashboard() {
         </Card>
       </View>
 
+      <View style={styles.summaryRow}>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{emergencyResources.length}</Text>
+          <Text style={styles.summaryLabel}>All resources</Text>
+        </Card>
+
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{publishedEmergencyResources.length}</Text>
+          <Text style={styles.summaryLabel}>Published resources</Text>
+        </Card>
+
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>
+            {publishedEmergencyResources.reduce(
+              (total, resource) => total + resource.quantity,
+              0,
+            )}
+          </Text>
+          <Text style={styles.summaryLabel}>Visible units</Text>
+        </Card>
+      </View>
+
       <Card accentColor={ROLE_COLORS.organization.main} style={styles.infoCard}>
         <View style={styles.inline}>
           <StatusBadge label="Iteration 2" />
           <Text style={styles.infoText}>
-            Shelter management now controls which RescueBridge shelters appear in the Affected Individual Nearby Shelters screen.
+            Organizations now control both published shelters and published emergency resources.
           </Text>
         </View>
       </Card>
@@ -86,12 +121,14 @@ export default function OrganizationDashboard() {
       ) : null}
 
       <Card accentColor={COLORS.primary} style={styles.shelterStatusCard}>
-        <Text style={styles.shelterStatusTitle}>Shelter publishing status</Text>
+        <Text style={styles.shelterStatusTitle}>Publishing status</Text>
         <Text style={styles.shelterStatusText}>
-          {publishedShelters.length} of {shelters.length} shelter records are currently visible to affected users.
+          {publishedShelters.length} of {shelters.length} shelter records and{" "}
+          {publishedEmergencyResources.length} of {emergencyResources.length} emergency resource
+          records are currently visible to affected users.
         </Text>
         <Text style={styles.shelterStatusNote}>
-          A shelter appears to users only when it is published, has available beds, and is Open or Limited.
+          Records appear to users only when published, available, and Open or Limited.
         </Text>
       </Card>
 

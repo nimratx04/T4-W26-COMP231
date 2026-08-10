@@ -56,6 +56,26 @@ export interface ShelterResource {
   updatedAt: string;
 }
 
+export type EmergencyResourceCategory = "Food" | "Water" | "Medical";
+
+export interface EmergencyResource {
+  id: string;
+  name: string;
+  category: EmergencyResourceCategory;
+  address: string;
+  city: string;
+  contactNumber: string;
+  quantity: number;
+  unit: string;
+  availabilityNote: string;
+  operatingHours: string;
+  status: OrganizationStatusValue;
+  isPublished: boolean;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
 export type VerificationStatus = "Pending" | "Verified" | "Rejected" | "Expired";
 
 export interface Volunteer {
