@@ -45,6 +45,27 @@ const statusFilterOptions = [
   "Rejected",
 ] as const;
 
+
+const statusDescriptions: Record<
+  IncidentStatus,
+  string
+> = {
+  "Pending Verification":
+    "Your report is waiting for admin review.",
+
+  Verified:
+    "Your report has been verified and is being assessed.",
+
+  Responding:
+    "A response is being coordinated for your report.",
+
+  Resolved:
+    "This incident has been resolved.",
+
+  Rejected:
+    "Your report was not verified. Please contact support if you have questions.",
+};
+
 export default function MyReportsScreen() {
   const router = useRouter();
   const [reports, setReports] = useState<IncidentRow[]>([]);
@@ -70,7 +91,7 @@ export default function MyReportsScreen() {
     } else {
       const dataList = data || [];
       setReports(dataList);
-      
+
       if (statusFilter === "All") {
         setFilteredReports(dataList);
       } else {
@@ -167,10 +188,10 @@ export default function MyReportsScreen() {
               report.urgency === "Urgent"
                 ? COLORS.emergency
                 : report.status === "Pending Verification"
-                ? COLORS.warning
-                : report.status === "Resolved"
-                ? COLORS.success
-                : COLORS.primary
+                  ? COLORS.warning
+                  : report.status === "Resolved"
+                    ? COLORS.success
+                    : COLORS.primary
             }
           >
             <View style={styles.headerRow}>
@@ -196,14 +217,20 @@ export default function MyReportsScreen() {
             <Text style={styles.label}>Description</Text>
             <Text style={styles.value}>{report.description}</Text>
 
-            <Card accentColor={COLORS.primary} style={styles.statusCard}>
+            <Card
+              accentColor={COLORS.primary}
+              style={styles.statusCard}
+            >
+              <Text style={styles.statusHeading}>
+                Current status
+              </Text>
+
+              <View style={styles.statusLabelRow}>
+                <StatusBadge label={report.status} />
+              </View>
+
               <Text style={styles.statusCardText}>
-                <Text style={styles.statusCardLabel}>Status: </Text>
-                {report.status === "Pending Verification" && "Your report is waiting for admin review."}
-                {report.status === "Verified" && "Your report has been verified and is being assessed."}
-                {report.status === "Responding" && "A response is being coordinated for your report."}
-                {report.status === "Resolved" && "This incident has been resolved."}
-                {report.status === "Rejected" && "Your report was not verified. Please contact support if you have questions."}
+                {statusDescriptions[report.status]}
               </Text>
             </Card>
           </Card>
@@ -318,10 +345,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     lineHeight: 20,
   },
-  statusCardLabel: {
-    fontWeight: "800",
-    color: COLORS.text,
-  },
   loadingText: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.sm,
@@ -338,6 +361,17 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.sm,
     lineHeight: 20,
+    marginVertical: SPACING.sm,
+  },
+  statusHeading: {
+    color: COLORS.text,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+
+  statusLabelRow: {
+    alignItems: "flex-start",
     marginVertical: SPACING.sm,
   },
 });
