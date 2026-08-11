@@ -9,7 +9,15 @@ import { useAppContext } from "../../context/AppContext";
 
 export default function OrganizationDashboard() {
   const router = useRouter();
-  const { resources, organizationStatus, resourceDraft } = useAppContext();
+  const {
+    resources,
+    organizationStatus,
+    resourceDraft,
+    shelters,
+    publishedShelters,
+    emergencyResources,
+    publishedEmergencyResources,
+  } = useAppContext();
 
   const links = [
     {
@@ -31,16 +39,26 @@ export default function OrganizationDashboard() {
       icon: "🏢",
     },
     {
+      title: "Manage Shelters",
+      description: "Add, edit, publish, hide, or delete shelters shown to affected users.",
+      route: "/organization/manage-shelters",
+      icon: "🏠",
+    },
+    {
+      title: "Manage Resources",
+      description: "Add, edit, publish, hide, or delete food, water, and medical resources.",
+      route: "/organization/manage-resources",
+      icon: "🧰",
+    },
+    {
       title: "Alerts & Updates",
-      description:
-        "View recent emergency broadcasts and instructions.",
+      description: "View recent emergency broadcasts and instructions.",
       route: "/organization/alerts-updates",
       icon: "🔔",
     },
     {
       title: "Nearby Requests",
-      description:
-        "Filter active requests, inspect urgency, and open saved locations.",
+      description: "Filter active requests, inspect urgency, and open saved locations.",
       route: "/organization/nearby-requests",
       icon: "📍",
     },
@@ -52,13 +70,13 @@ export default function OrganizationDashboard() {
 
       <SectionTitle
         title="Organization Staff Dashboard"
-        subtitle="Iteration Planning 1 screens for updating resources and organization status."
+        subtitle="Update resources, publish shelter availability, and control what affected users can see."
       />
 
       <View style={styles.summaryRow}>
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryNumber}>{resources.beds}</Text>
-          <Text style={styles.summaryLabel}>Beds</Text>
+          <Text style={styles.summaryLabel}>Resource beds</Text>
         </Card>
 
         <Card style={styles.summaryCard}>
@@ -67,18 +85,38 @@ export default function OrganizationDashboard() {
         </Card>
 
         <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{publishedShelters.length}</Text>
+          <Text style={styles.summaryLabel}>Published shelters</Text>
+        </Card>
+      </View>
+
+      <View style={styles.summaryRow}>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{emergencyResources.length}</Text>
+          <Text style={styles.summaryLabel}>All resources</Text>
+        </Card>
+
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{publishedEmergencyResources.length}</Text>
+          <Text style={styles.summaryLabel}>Published resources</Text>
+        </Card>
+
+        <Card style={styles.summaryCard}>
           <Text style={styles.summaryNumber}>
-            {resourceDraft ? "1" : "0"}
+            {publishedEmergencyResources.reduce(
+              (total, resource) => total + resource.quantity,
+              0,
+            )}
           </Text>
-          <Text style={styles.summaryLabel}>Draft updates</Text>
+          <Text style={styles.summaryLabel}>Visible units</Text>
         </Card>
       </View>
 
       <Card accentColor={ROLE_COLORS.organization.main} style={styles.infoCard}>
         <View style={styles.inline}>
-          <StatusBadge label="Iteration 1" />
+          <StatusBadge label="Iteration 2" />
           <Text style={styles.infoText}>
-            This section focuses on M3 Update Resource Availability, M4 Review and Save Resource Changes, and M5 Update Organization Status.
+            Organizations now control published shelters, emergency resources, alerts, and nearby requests.
           </Text>
         </View>
       </Card>
@@ -93,6 +131,18 @@ export default function OrganizationDashboard() {
           </Text>
         </Card>
       ) : null}
+
+      <Card accentColor={COLORS.primary} style={styles.shelterStatusCard}>
+        <Text style={styles.shelterStatusTitle}>Publishing status</Text>
+        <Text style={styles.shelterStatusText}>
+          {publishedShelters.length} of {shelters.length} shelter records and{" "}
+          {publishedEmergencyResources.length} of {emergencyResources.length} emergency resource
+          records are currently visible to affected users.
+        </Text>
+        <Text style={styles.shelterStatusNote}>
+          Records appear to users only when published, available, and Open or Limited.
+        </Text>
+      </Card>
 
       {links.map((link) => (
         <Card
@@ -132,6 +182,7 @@ const styles = StyleSheet.create({
     color: ROLE_COLORS.organization.main,
     fontSize: FONT_SIZE.xl,
     fontWeight: "900",
+    textAlign: "center",
   },
   summaryLabel: {
     color: COLORS.textSecondary,
@@ -164,6 +215,26 @@ const styles = StyleSheet.create({
   noticeText: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
+    marginTop: SPACING.xs,
+  },
+  shelterStatusCard: {
+    backgroundColor: COLORS.infoLight,
+  },
+  shelterStatusTitle: {
+    color: COLORS.primaryDark,
+    fontSize: FONT_SIZE.md,
+    fontWeight: "900",
+  },
+  shelterStatusText: {
+    color: COLORS.text,
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
+    marginTop: SPACING.xs,
+  },
+  shelterStatusNote: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 18,
     marginTop: SPACING.xs,
   },
   linkRow: {

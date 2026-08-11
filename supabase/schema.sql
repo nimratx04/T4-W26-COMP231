@@ -1,5 +1,5 @@
 ﻿-- RescueBridge Supabase Schema
--- Iteration Planning 1 & 2 Prototype
+-- Iteration Planning 1 and Iteration 2 Prototype
 
 create table if not exists help_requests (
   id uuid primary key default gen_random_uuid(),
@@ -57,6 +57,46 @@ create table if not exists tasks (
   created_at timestamptz default now()
 );
 
+create table if not exists shelters (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  address text not null,
+  city text not null,
+  contact_number text not null,
+  available_beds integer not null default 0,
+  total_capacity integer not null default 0,
+  food_support integer not null default 0,
+  water_support integer not null default 0,
+  medical_support text not null,
+  supplies text not null,
+  operating_hours text not null,
+  status text not null default 'Open',
+  is_published boolean not null default true,
+  latitude double precision not null,
+  longitude double precision not null,
+  updated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+create table if not exists emergency_resources (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null check (category in ('Food', 'Water', 'Medical')),
+  address text not null,
+  city text not null,
+  contact_number text not null,
+  quantity integer not null default 0,
+  unit text not null,
+  availability_note text not null,
+  operating_hours text not null,
+  status text not null default 'Open' check (status in ('Open', 'Limited', 'Full', 'Closed')),
+  is_published boolean not null default true,
+  latitude double precision not null,
+  longitude double precision not null,
+  updated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
 create table if not exists reporters (
   id uuid primary key default gen_random_uuid(),
   incident_type text,
@@ -68,17 +108,6 @@ create table if not exists reporters (
   created_at timestamptz default now()
 );
 
--- Prototype permissions for classroom testing only
-grant usage on schema public to anon, authenticated;
-
-grant select, insert, update on table help_requests to anon, authenticated;
-grant select, insert, update on table resources to anon, authenticated;
-grant select, insert, update on table organization_status to anon, authenticated;
-grant select, insert, update on table volunteers to anon, authenticated;
-grant select, insert, update on table tasks to anon, authenticated;
-grant select, insert, update on table reporters to anon, authenticated;
-
--- incident_reports table
 create table if not exists incident_reports (
   id uuid primary key default gen_random_uuid(),
   incident_type text not null,
@@ -90,7 +119,6 @@ create table if not exists incident_reports (
   created_at timestamptz default now()
 );
 
--- broadcasts table
 create table if not exists broadcasts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -101,7 +129,6 @@ create table if not exists broadcasts (
   created_at timestamptz default now()
 );
 
--- alerts table
 create table if not exists alerts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -113,11 +140,29 @@ create table if not exists alerts (
   created_at timestamptz default now()
 );
 
--- Storage bucket for photos
-insert into storage.buckets (id, name) 
+-- Prototype permissions for classroom testing only
+
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update on table help_requests to anon, authenticated;
+grant select, insert, update on table resources to anon, authenticated;
+grant select, insert, update on table organization_status to anon, authenticated;
+grant select, insert, update on table volunteers to anon, authenticated;
+grant select, insert, update on table tasks to anon, authenticated;
+grant select, insert, update, delete on table shelters to anon, authenticated;
+grant select, insert, update, delete on table emergency_resources to anon, authenticated;
+grant select, insert, update on table reporters to anon, authenticated;
+grant select, insert, update on table incident_reports to anon, authenticated;
+grant select, insert, update on table broadcasts to anon, authenticated;
+grant select, insert, update on table alerts to anon, authenticated;
+
+-- Storage bucket for incident photos
+
+insert into storage.buckets (id, name)
 values ('incident-photos', 'incident-photos')
 on conflict (id) do nothing;
 
--- Storage policies
+drop policy if exists "Public Access" on storage.objects;
+
 create policy "Public Access" on storage.objects
   for all using (bucket_id = 'incident-photos');

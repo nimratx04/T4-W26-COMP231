@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+﻿import { Platform } from "react-native";
 
 export const COLORS = {
   primary: "#1565C0",
@@ -33,7 +33,7 @@ export const ROLE_COLORS = {
   organization: { main: "#2E7D32", light: "#E8F5E9" },
   volunteer: { main: "#1565C0", light: "#E3F2FD" },
   admin: { main: "#5E35B1", light: "#EDE7F6" },
-  reporter: { main: "#EF6C00", light: "#FFF3E0" }, 
+  reporter: { main: "#EF6C00", light: "#FFF3E0" },
 } as const;
 
 export const STATUS_STYLES = {

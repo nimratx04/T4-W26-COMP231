@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import "react-native-url-polyfill/auto";
 
@@ -86,7 +86,7 @@ export const getUserIncidentReports = async (userId?: string) => {
 
   // In a real app, filter by user_id. For demo, we return all.
   // In production, add: .eq("user_id", userId)
-  
+
   const { data, error } = await query;
 
   if (error) throw error;
@@ -113,7 +113,7 @@ export const uploadIncidentPhoto = async (uri: string, fileName: string) => {
   const blob = await response.blob();
 
   const path = `incident-photos/${Date.now()}-${fileName}`;
-  
+
   const { data, error } = await supabase.storage
     .from("incident-photos")
     .upload(path, blob, {
@@ -122,7 +122,7 @@ export const uploadIncidentPhoto = async (uri: string, fileName: string) => {
     });
 
   if (error) throw error;
-  
+
   // Get public URL
   const { data: urlData } = supabase.storage
     .from("incident-photos")
@@ -268,7 +268,7 @@ export const getResourceTypes = async () => {
     .not("type", "is", null);
 
   if (error) throw error;
-  
+
   // Return unique types
   const uniqueTypes = [...new Set(data.map((item) => item.type).filter(Boolean))];
   return uniqueTypes;
@@ -703,5 +703,3 @@ export const seedTestData = async () => {
     return { success: false, error };
   }
 };
-
-
