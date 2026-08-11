@@ -1,32 +1,25 @@
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import AppButton from "../../components/AppButton";
 import Card from "../../components/Card";
 import EmptyState from "../../components/EmptyState";
 import Screen from "../../components/Screen";
 import SectionTitle from "../../components/SectionTitle";
 import StatusBadge from "../../components/StatusBadge";
-import { COLORS, FONT_SIZE, RADIUS, SPACING } from "../../constants/theme";
+import { COLORS, FONT_SIZE, ROLE_COLORS, SPACING } from "../../constants/theme";
 import { supabase } from "../../lib/supabase";
 
 type AlertRow = {
   id: string;
-  incident_type: string;
-  description: string;
-  location: string;
-  urgency: string;
-  status: string;
+  title: string;
+  message: string;
+  area: string;
+  priority: string;
+  type: string;
+  instructions: string | null;
   created_at: string;
 };
-
-const formatDate = (value: string) =>
-  new Date(value).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 export default function CommunityAlertsScreen() {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
@@ -38,17 +31,16 @@ export default function CommunityAlertsScreen() {
     setIsLoading(true);
     setErrorMessage("");
 
-    // ✅ FIXED: Changed from "alerts" to "reporters"
     const { data, error } = await supabase
-      .from("reporters")
-      .select("*")
+      .from("alerts")
+      .select("id, title, message, area, priority, type, instructions, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
-      setErrorMessage("Could not load community alerts from Supabase.");
       setAlerts([]);
+      setErrorMessage(`Could not load community alerts: ${error.message}`);
     } else {
-      setAlerts(data || []);
+      setAlerts((data || []) as AlertRow[]);
     }
 
     setIsLoading(false);
@@ -58,93 +50,48 @@ export default function CommunityAlertsScreen() {
     loadAlerts();
   }, []);
 
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
   return (
     <Screen>
       <Stack.Screen options={{ title: "Community Alerts" }} />
-
-      <SectionTitle
-        title="Community Alerts"
-        subtitle="Safety notices, incident updates, affected areas, and instructions."
-      />
+      <SectionTitle title="Community Alerts" subtitle="Review the message, affected area, and safety instructions for current alerts." />
 
       {isLoading ? (
-        <Card>
-          <Text style={styles.loadingText}>Loading alerts...</Text>
-        </Card>
+        <Card><Text style={styles.message}>Loading alerts...</Text></Card>
       ) : errorMessage ? (
-        <Card accentColor={COLORS.emergency} style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Database error</Text>
-          <Text style={styles.errorText}>{errorMessage}</Text>
+        <Card accentColor={COLORS.emergency}>
+          <Text style={styles.message}>{errorMessage}</Text>
           <AppButton title="Try Again" onPress={loadAlerts} variant="danger" />
         </Card>
       ) : alerts.length === 0 ? (
-        <EmptyState
-          icon="🔔"
-          title="No alerts"
-          message="Community alerts will appear here when they are published."
-        />
+        <EmptyState icon="🔔" title="No alerts" message="Community alerts will appear here when an Admin publishes a broadcast." />
       ) : (
         alerts.map((alert) => {
           const expanded = expandedId === alert.id;
-
           return (
-            <Pressable
-              key={alert.id}
-              onPress={() => toggleExpand(alert.id)}
-            >
-              <Card
-                accentColor={
-                  alert.urgency === "Urgent"
-                    ? COLORS.emergency
-                    : alert.urgency === "High"
-                    ? COLORS.warning
-                    : COLORS.primary
-                }
-                style={expanded && styles.expandedAlert}
-              >
-                <View style={styles.headerRow}>
-                  <View style={styles.titleWrap}>
-                    <Text style={styles.title}>{alert.incident_type}</Text>
-                    <Text style={styles.updated}>Posted {formatDate(alert.created_at)}</Text>
-                  </View>
-                  <StatusBadge label={alert.urgency} />
+            <Card key={alert.id} accentColor={alert.priority === "Urgent" ? COLORS.emergency : ROLE_COLORS.reporter.main}>
+              <View style={styles.headerRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.title}>{alert.title}</Text>
+                  <Text style={styles.date}>{new Date(alert.created_at).toLocaleString()}</Text>
                 </View>
+                <StatusBadge label={alert.priority} />
+              </View>
 
-                <View style={styles.badgeRow}>
-                  <StatusBadge label={alert.status} />
-                  <Text style={styles.area}>📍 {alert.location}</Text>
-                </View>
+              <Text style={styles.label}>Message</Text>
+              <Text style={styles.value}>{alert.message}</Text>
 
-                {/* Always show message */}
-                <Text style={styles.label}>Message</Text>
-                <Text style={styles.value}>{alert.description}</Text>
+              <Text style={styles.label}>Affected Area</Text>
+              <Text style={styles.value}>{alert.area}</Text>
 
-                {/* Expanded view shows instructions and affected areas */}
-                {expanded && (
-                  <View style={styles.expandedContent}>
-                    <View style={styles.divider} />
-                    <Text style={styles.label}>Affected Area</Text>
-                    <Text style={styles.affectedArea}>{alert.location}</Text>
+              {expanded ? (
+                <>
+                  <Text style={styles.label}>Instructions</Text>
+                  <Text style={styles.value}>{alert.instructions || "No additional instructions."}</Text>
+                </>
+              ) : null}
 
-                    {alert.urgency === "Urgent" && (
-                      <Card accentColor={COLORS.emergency} style={styles.urgentCard}>
-                        <Text style={styles.urgentText}>
-                          ⚠️ This is an urgent alert. Please take immediate action.
-                        </Text>
-                      </Card>
-                    )}
-                  </View>
-                )}
-
-                <Text style={styles.expandHint}>
-                  {expanded ? "Tap to collapse details" : "Tap for more details"}
-                </Text>
-              </Card>
-            </Pressable>
+              <AppButton title={expanded ? "Hide Instructions" : "View Instructions"} onPress={() => setExpandedId(expanded ? null : alert.id)} variant="secondary" />
+            </Card>
           );
         })
       )}
@@ -155,100 +102,11 @@ export default function CommunityAlertsScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: SPACING.sm,
-  },
-  titleWrap: {
-    flex: 1,
-  },
-  title: {
-    color: COLORS.text,
-    fontSize: FONT_SIZE.lg,
-    fontWeight: "900",
-  },
-  updated: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.xs,
-    marginTop: 2,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.sm,
-    marginVertical: SPACING.md,
-  },
-  area: {
-    flex: 1,
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZE.xs,
-  },
-  label: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.xs,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    marginTop: SPACING.sm,
-  },
-  value: {
-    color: COLORS.text,
-    fontSize: FONT_SIZE.sm,
-    lineHeight: 20,
-    marginTop: 3,
-  },
-  expandedContent: {
-    marginTop: SPACING.md,
-  },
-  divider: {
-    borderTopColor: COLORS.border,
-    borderTopWidth: 1,
-    marginVertical: SPACING.md,
-  },
-  affectedArea: {
-    color: COLORS.text,
-    fontSize: FONT_SIZE.sm,
-    lineHeight: 20,
-    marginTop: 3,
-    fontWeight: "600",
-  },
-  urgentCard: {
-    backgroundColor: COLORS.emergencyLight,
-    marginTop: SPACING.md,
-  },
-  urgentText: {
-    color: COLORS.emergencyDark,
-    fontSize: FONT_SIZE.sm,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  expandHint: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.xs,
-    textAlign: "center",
-    marginTop: SPACING.md,
-    fontStyle: "italic",
-  },
-  loadingText: {
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZE.sm,
-  },
-  errorCard: {
-    backgroundColor: COLORS.emergencyLight,
-  },
-  errorTitle: {
-    color: COLORS.emergencyDark,
-    fontSize: FONT_SIZE.lg,
-    fontWeight: "900",
-  },
-  errorText: {
-    color: COLORS.textSecondary,
-    fontSize: FONT_SIZE.sm,
-    lineHeight: 20,
-    marginVertical: SPACING.sm,
-  },
-  expandedAlert: {
-    backgroundColor: COLORS.surfaceMuted,
-  },
+  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm },
+  flex: { flex: 1 },
+  title: { color: COLORS.text, fontSize: FONT_SIZE.lg, fontWeight: "900" },
+  date: { color: COLORS.textMuted, fontSize: FONT_SIZE.xs, marginTop: 2 },
+  label: { color: COLORS.textMuted, fontSize: FONT_SIZE.xs, fontWeight: "800", textTransform: "uppercase", marginTop: SPACING.md },
+  value: { color: COLORS.text, fontSize: FONT_SIZE.sm, lineHeight: 20, marginTop: 3 },
+  message: { color: COLORS.textSecondary, fontSize: FONT_SIZE.sm, lineHeight: 20 },
 });
