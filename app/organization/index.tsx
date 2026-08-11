@@ -37,6 +37,13 @@ export default function OrganizationDashboard() {
       route: "/organization/alerts-updates",
       icon: "🔔",
     },
+    {
+      title: "Nearby Requests",
+      description:
+        "Filter active requests, inspect urgency, and open saved locations.",
+      route: "/organization/nearby-requests",
+      icon: "📍",
+    },
   ] as const;
 
   return (
