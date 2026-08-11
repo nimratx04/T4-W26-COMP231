@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import AppButton from "../../components/AppButton";
 import Card from "../../components/Card";
@@ -12,22 +12,46 @@ import { supabase } from "../../lib/supabase";
 
 type VolunteerRow = {
   id: string;
-  name: string;
-  status: string;
+  name: string | null;
+  status: string | null;
 };
 
 type TaskRow = {
   id: string;
-  title: string;
-  type: string;
-  location: string;
-  urgency: string;
-  priority: string;
-  description: string;
-  status: string;
+  title: string | null;
+  type: string | null;
+  location: string | null;
+  urgency: string | null;
+  priority: string | null;
+  description: string | null;
+  status: string | null;
   assigned_volunteer_id: string | null;
-  created_at: string;
+  created_at: string | null;
 };
+
+const requiredTaskFields: Array<keyof Pick<
+  TaskRow,
+  "title" | "type" | "location" | "urgency" | "priority" | "description"
+>> = ["title", "type", "location", "urgency", "priority", "description"];
+
+const fieldLabels: Record<string, string> = {
+  title: "title",
+  type: "task type",
+  location: "general location",
+  urgency: "urgency",
+  priority: "priority",
+  description: "description",
+};
+
+const hasText = (value: string | null | undefined) => Boolean(value?.trim());
+
+const getMissingTaskFields = (task: TaskRow) =>
+  requiredTaskFields
+    .filter((field) => !hasText(task[field]))
+    .map((field) => fieldLabels[field]);
+
+const getDisplayValue = (value: string | null | undefined, fallback: string) =>
+  value?.trim() ? value.trim() : fallback;
 
 export default function AvailableTasksScreen() {
   const router = useRouter();
@@ -53,7 +77,9 @@ export default function AvailableTasksScreen() {
 
       supabase
         .from("tasks")
-        .select("id, title, type, location, urgency, priority, description, status, assigned_volunteer_id, created_at")
+        .select(
+          "id, title, type, location, urgency, priority, description, status, assigned_volunteer_id, created_at",
+        )
         .eq("status", "Available")
         .order("created_at", { ascending: false }),
     ]);
@@ -80,11 +106,29 @@ export default function AvailableTasksScreen() {
 
   const verified = currentVolunteer?.status === "Verified";
 
+  const incompleteTaskCount = useMemo(
+    () => availableTasks.filter((task) => getMissingTaskFields(task).length > 0).length,
+    [availableTasks],
+  );
+
+  const validTaskCount = availableTasks.length - incompleteTaskCount;
+
   const accept = async (task: TaskRow) => {
     setMessage("");
 
     if (!currentVolunteer || currentVolunteer.status !== "Verified") {
       setMessage("The task could not be accepted. Only a Verified volunteer can accept tasks.");
+      return;
+    }
+
+    const missingFields = getMissingTaskFields(task);
+
+    if (missingFields.length > 0) {
+      setMessage(
+        `This task is missing ${missingFields.join(
+          ", ",
+        )}. Ask an admin to complete the task details before accepting it.`,
+      );
       return;
     }
 
@@ -112,8 +156,27 @@ export default function AvailableTasksScreen() {
 
       <SectionTitle
         title="Available & Nearby Tasks"
-        subtitle="Review the task type, general location, and urgency before deciding whether to accept a task."
+        subtitle="Review task details and validation warnings before accepting volunteer work."
       />
+
+      <View style={styles.summaryRow}>
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{availableTasks.length}</Text>
+          <Text style={styles.summaryLabel}>Available</Text>
+        </Card>
+
+        <Card style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{validTaskCount}</Text>
+          <Text style={styles.summaryLabel}>Complete details</Text>
+        </Card>
+
+        <Card style={styles.summaryCard}>
+          <Text style={[styles.summaryNumber, styles.warningNumber]}>
+            {incompleteTaskCount}
+          </Text>
+          <Text style={styles.summaryLabel}>Need review</Text>
+        </Card>
+      </View>
 
       {isLoading ? (
         <Card>
@@ -132,7 +195,9 @@ export default function AvailableTasksScreen() {
           <Text style={styles.lockTitle}>Task access locked</Text>
           <Text style={styles.lockText}>
             {currentVolunteer
-              ? `${currentVolunteer.name} is currently ${currentVolunteer.status}. Only Verified volunteers can accept tasks.`
+              ? `${currentVolunteer.name || "This volunteer"} is currently ${
+                  currentVolunteer.status || "Pending"
+                }. Only Verified volunteers can accept tasks.`
               : "No volunteer verification record was found. Submit verification first."}
           </Text>
 
@@ -165,37 +230,71 @@ export default function AvailableTasksScreen() {
           message="New available tasks will appear here when coordinators publish them."
         />
       ) : (
-        availableTasks.map((task) => (
-          <Card
-            key={task.id}
-            accentColor={task.priority === "Urgent" ? COLORS.emergency : COLORS.primary}
-          >
-            <View style={styles.headerRow}>
-              <View style={styles.titleWrap}>
-                <Text style={styles.title}>{task.title}</Text>
-                <Text style={styles.type}>{task.type}</Text>
+        availableTasks.map((task) => {
+          const missingFields = getMissingTaskFields(task);
+          const taskIsComplete = missingFields.length === 0;
+
+          return (
+            <Card
+              key={task.id}
+              accentColor={
+                !taskIsComplete
+                  ? COLORS.warning
+                  : task.priority === "Urgent"
+                    ? COLORS.emergency
+                    : COLORS.primary
+              }
+            >
+              <View style={styles.headerRow}>
+                <View style={styles.titleWrap}>
+                  <Text style={styles.title}>
+                    {getDisplayValue(task.title, "Untitled task")}
+                  </Text>
+                  <Text style={styles.type}>
+                    {getDisplayValue(task.type, "Task type missing")}
+                  </Text>
+                </View>
+
+                <View style={styles.badges}>
+                  <StatusBadge label={getDisplayValue(task.priority, "Missing")} />
+                  <StatusBadge label={taskIsComplete ? "Complete" : "Incomplete"} />
+                </View>
               </View>
 
-              <StatusBadge label={task.priority} />
-            </View>
+              {!taskIsComplete ? (
+                <Card accentColor={COLORS.warning} style={styles.validationCard}>
+                  <Text style={styles.validationTitle}>Missing task details</Text>
+                  <Text style={styles.validationText}>
+                    Required field(s): {missingFields.join(", ")}. This task cannot be
+                    accepted until the missing details are added.
+                  </Text>
+                </Card>
+              ) : null}
 
-            <Text style={styles.label}>General location</Text>
-            <Text style={styles.value}>{task.location}</Text>
+              <Text style={styles.label}>General location</Text>
+              <Text style={styles.value}>
+                {getDisplayValue(task.location, "Location missing")}
+              </Text>
 
-            <Text style={styles.label}>Urgency</Text>
-            <Text style={styles.value}>{task.urgency}</Text>
+              <Text style={styles.label}>Urgency</Text>
+              <Text style={styles.value}>
+                {getDisplayValue(task.urgency, "Urgency missing")}
+              </Text>
 
-            <Text style={styles.description}>{task.description}</Text>
+              <Text style={styles.description}>
+                {getDisplayValue(task.description, "Description missing")}
+              </Text>
 
-            <AppButton
-              title="Accept Task"
-              onPress={() => accept(task)}
-              variant="success"
-              disabled={!verified}
-              style={styles.acceptButton}
-            />
-          </Card>
-        ))
+              <AppButton
+                title={taskIsComplete ? "Accept Task" : "Cannot Accept Yet"}
+                onPress={() => accept(task)}
+                variant={taskIsComplete ? "success" : "outline"}
+                disabled={!verified || !taskIsComplete}
+                style={styles.acceptButton}
+              />
+            </Card>
+          );
+        })
       )}
 
       <AppButton title="Refresh Tasks" onPress={loadData} variant="secondary" />
@@ -204,6 +303,30 @@ export default function AvailableTasksScreen() {
 }
 
 const styles = StyleSheet.create({
+  summaryRow: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  summaryCard: {
+    flex: 1,
+    alignItems: "center",
+    padding: SPACING.md,
+  },
+  summaryNumber: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZE.xl,
+    fontWeight: "900",
+  },
+  warningNumber: {
+    color: COLORS.warning,
+  },
+  summaryLabel: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    textAlign: "center",
+    marginTop: 2,
+  },
   loadingText: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.sm,
@@ -261,6 +384,26 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     marginTop: 2,
+  },
+  badges: {
+    alignItems: "flex-end",
+    gap: SPACING.xs,
+  },
+  validationCard: {
+    backgroundColor: COLORS.warningLight,
+    marginBottom: 0,
+    marginTop: SPACING.md,
+  },
+  validationTitle: {
+    color: COLORS.warning,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: "900",
+  },
+  validationText: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
+    marginTop: SPACING.xs,
   },
   label: {
     color: COLORS.textMuted,

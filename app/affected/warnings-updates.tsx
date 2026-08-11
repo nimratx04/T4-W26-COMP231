@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import AppButton from "../../components/AppButton";
@@ -26,17 +26,36 @@ type AlertRow = {
 
 const filters: AlertFilter[] = ["All", "Urgent", "High", "Medium", "Low"];
 
-const getAlertAccent = (priority: string) => {
-  if (priority === "Urgent") return COLORS.emergency;
-  if (priority === "High") return COLORS.warning;
-  return ROLE_COLORS.reporter.main;
+const getPriorityAccent = (priority: string) => {
+  switch (priority) {
+    case "Urgent":
+      return COLORS.emergency;
+    case "High":
+      return COLORS.warning;
+    case "Medium":
+      return COLORS.primary;
+    case "Low":
+      return COLORS.success;
+    default:
+      return ROLE_COLORS.affected.main;
+  }
 };
 
-export default function CommunityAlertsScreen() {
+const formatDateTime = (isoDate: string) =>
+  new Date(isoDate).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+export default function AffectedWarningsUpdatesScreen() {
+  const router = useRouter();
+
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [selectedFilter, setSelectedFilter] = useState<AlertFilter>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [readAlertIds, setReadAlertIds] = useState<string[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<AlertFilter>("All");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -51,7 +70,7 @@ export default function CommunityAlertsScreen() {
 
     if (error) {
       setAlerts([]);
-      setErrorMessage(`Could not load community alerts: ${error.message}`);
+      setErrorMessage(`Could not load warnings and updates: ${error.message}`);
     } else {
       setAlerts((data || []) as AlertRow[]);
     }
@@ -63,7 +82,7 @@ export default function CommunityAlertsScreen() {
     loadAlerts();
   }, []);
 
-  const visibleAlerts = useMemo(
+  const filteredAlerts = useMemo(
     () =>
       alerts.filter((alert) =>
         selectedFilter === "All" ? true : alert.priority === selectedFilter,
@@ -71,8 +90,8 @@ export default function CommunityAlertsScreen() {
     [alerts, selectedFilter],
   );
 
-  const unreadCount = alerts.filter((alert) => !readAlertIds.includes(alert.id)).length;
   const urgentCount = alerts.filter((alert) => alert.priority === "Urgent").length;
+  const unreadCount = alerts.filter((alert) => !readAlertIds.includes(alert.id)).length;
 
   const toggleExpanded = (alert: AlertRow) => {
     setExpandedId((current) => (current === alert.id ? null : alert.id));
@@ -84,17 +103,17 @@ export default function CommunityAlertsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: "Community Alerts" }} />
+      <Stack.Screen options={{ title: "Warnings & Updates" }} />
 
       <SectionTitle
-        title="Community Alerts"
-        subtitle="Review emergency broadcasts, affected areas, safety instructions, and read/unread status."
+        title="Warnings & Updates Feed"
+        subtitle="View emergency broadcasts, safety warnings, affected areas, and official instructions."
       />
 
       <View style={styles.summaryRow}>
         <Card style={styles.summaryCard}>
           <Text style={styles.summaryNumber}>{alerts.length}</Text>
-          <Text style={styles.summaryLabel}>Total alerts</Text>
+          <Text style={styles.summaryLabel}>Total updates</Text>
         </Card>
 
         <Card style={styles.summaryCard}>
@@ -108,8 +127,8 @@ export default function CommunityAlertsScreen() {
         </Card>
       </View>
 
-      <Card accentColor={ROLE_COLORS.reporter.main} style={styles.filterCard}>
-        <Text style={styles.filterTitle}>Filter alerts</Text>
+      <Card accentColor={ROLE_COLORS.affected.main} style={styles.filterCard}>
+        <Text style={styles.filterTitle}>Filter by priority</Text>
 
         <View style={styles.filterGrid}>
           {filters.map((filter) => (
@@ -122,40 +141,46 @@ export default function CommunityAlertsScreen() {
             </View>
           ))}
         </View>
+
+        <Text style={styles.filterNote}>
+          Updates are loaded from the same alerts table used by Admin broadcasts.
+        </Text>
       </Card>
 
       {isLoading ? (
         <Card>
-          <Text style={styles.message}>Loading alerts...</Text>
+          <Text style={styles.message}>Loading warnings and updates...</Text>
         </Card>
       ) : errorMessage ? (
         <Card accentColor={COLORS.emergency}>
           <Text style={styles.message}>{errorMessage}</Text>
           <AppButton title="Try Again" onPress={loadAlerts} variant="danger" />
         </Card>
-      ) : visibleAlerts.length === 0 ? (
+      ) : filteredAlerts.length === 0 ? (
         <EmptyState
-          icon="🔔"
-          title="No alerts"
-          message="Community alerts will appear here when an Admin publishes a broadcast."
-          actionTitle="Refresh Alerts"
+          icon="⚠️"
+          title="No warnings found"
+          message="No warnings or updates match this filter right now."
+          actionTitle="Refresh"
           onAction={loadAlerts}
         />
       ) : (
-        visibleAlerts.map((alert) => {
+        filteredAlerts.map((alert) => {
           const expanded = expandedId === alert.id;
           const isRead = readAlertIds.includes(alert.id);
 
           return (
-            <Card key={alert.id} accentColor={getAlertAccent(alert.priority)}>
-              <View style={styles.headerRow}>
-                <View style={styles.flex}>
+            <Card key={alert.id} accentColor={getPriorityAccent(alert.priority)}>
+              <View style={styles.alertHeader}>
+                <View style={styles.alertTitleWrap}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.title}>{alert.title}</Text>
+                    <Text style={styles.alertTitle}>{alert.title}</Text>
                     {!isRead ? <Text style={styles.unreadDot}>●</Text> : null}
                   </View>
 
-                  <Text style={styles.date}>{new Date(alert.created_at).toLocaleString()}</Text>
+                  <Text style={styles.alertMeta}>
+                    {alert.area} • {formatDateTime(alert.created_at)}
+                  </Text>
                 </View>
 
                 <View style={styles.badges}>
@@ -164,26 +189,35 @@ export default function CommunityAlertsScreen() {
                 </View>
               </View>
 
-              <Text style={styles.label}>Message</Text>
-              <Text style={styles.value}>{alert.message}</Text>
-
-              <Text style={styles.label}>Affected Area</Text>
-              <Text style={styles.value}>{alert.area}</Text>
+              <Card style={styles.innerCard}>
+                <Text style={styles.innerLabel}>Message</Text>
+                <Text style={styles.innerText}>{alert.message}</Text>
+              </Card>
 
               {expanded ? (
-                <Card style={styles.detailsCard}>
-                  <Text style={styles.label}>Instructions</Text>
-                  <Text style={styles.value}>
-                    {alert.instructions || "No additional instructions."}
+                <Card style={styles.instructionCard}>
+                  <Text style={styles.innerLabel}>Instructions</Text>
+                  <Text style={styles.innerText}>
+                    {alert.instructions?.trim() ||
+                      "No extra instructions were added for this update."}
                   </Text>
 
-                  <Text style={styles.label}>Alert Type</Text>
-                  <Text style={styles.value}>{alert.type}</Text>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailBox}>
+                      <Text style={styles.detailLabel}>Type</Text>
+                      <Text style={styles.detailValue}>{alert.type}</Text>
+                    </View>
+
+                    <View style={styles.detailBox}>
+                      <Text style={styles.detailLabel}>Affected area</Text>
+                      <Text style={styles.detailValue}>{alert.area}</Text>
+                    </View>
+                  </View>
                 </Card>
               ) : null}
 
               <AppButton
-                title={expanded ? "Hide Instructions" : "View Instructions"}
+                title={expanded ? "Hide Details" : "View Details"}
                 onPress={() => toggleExpanded(alert)}
                 variant="secondary"
               />
@@ -192,7 +226,19 @@ export default function CommunityAlertsScreen() {
         })
       )}
 
-      <AppButton title="Refresh Alerts" onPress={loadAlerts} variant="secondary" />
+      <AppButton title="Refresh Updates" onPress={loadAlerts} variant="secondary" />
+
+      <AppButton
+        title="Request Help"
+        onPress={() => router.push("/affected/submit-help" as any)}
+        variant="danger"
+      />
+
+      <AppButton
+        title="Back to Affected Dashboard"
+        onPress={() => router.push("/affected" as any)}
+        variant="outline"
+      />
     </Screen>
   );
 }
@@ -209,7 +255,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   summaryNumber: {
-    color: ROLE_COLORS.reporter.main,
+    color: ROLE_COLORS.affected.main,
     fontSize: FONT_SIZE.xl,
     fontWeight: "900",
   },
@@ -223,7 +269,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   filterCard: {
-    backgroundColor: ROLE_COLORS.reporter.light,
+    backgroundColor: ROLE_COLORS.affected.light,
   },
   filterTitle: {
     color: COLORS.text,
@@ -240,12 +286,23 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 120,
   },
-  headerRow: {
+  filterNote: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 18,
+    marginTop: SPACING.sm,
+  },
+  message: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
+  },
+  alertHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: SPACING.sm,
+    gap: SPACING.md,
   },
-  flex: {
+  alertTitleWrap: {
     flex: 1,
   },
   titleRow: {
@@ -253,7 +310,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: SPACING.xs,
   },
-  title: {
+  alertTitle: {
     color: COLORS.text,
     flex: 1,
     fontSize: FONT_SIZE.lg,
@@ -264,35 +321,60 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.md,
     fontWeight: "900",
   },
-  date: {
-    color: COLORS.textMuted,
+  alertMeta: {
+    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
+    lineHeight: 18,
     marginTop: 2,
   },
   badges: {
     alignItems: "flex-end",
     gap: SPACING.xs,
   },
-  label: {
-    color: COLORS.textMuted,
-    fontSize: FONT_SIZE.xs,
-    fontWeight: "800",
-    textTransform: "uppercase",
+  innerCard: {
+    backgroundColor: COLORS.surfaceMuted,
+    marginBottom: 0,
     marginTop: SPACING.md,
   },
-  value: {
+  instructionCard: {
+    backgroundColor: COLORS.infoLight,
+    marginBottom: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  innerLabel: {
     color: COLORS.text,
     fontSize: FONT_SIZE.sm,
-    lineHeight: 20,
-    marginTop: 3,
+    fontWeight: "900",
+    marginBottom: SPACING.xs,
   },
-  message: {
+  innerText: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.sm,
     lineHeight: 20,
   },
-  detailsCard: {
-    backgroundColor: COLORS.infoLight,
+  detailRow: {
+    flexDirection: "row",
+    gap: SPACING.sm,
     marginTop: SPACING.md,
+  },
+  detailBox: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: SPACING.md,
+  },
+  detailLabel: {
+    color: COLORS.textMuted,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    color: COLORS.text,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: "800",
+    marginTop: SPACING.xs,
   },
 });

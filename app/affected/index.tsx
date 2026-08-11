@@ -36,6 +36,12 @@ export default function AffectedDashboard() {
       icon: "📋",
     },
     {
+      title: "Warnings & Updates",
+      description: "View emergency broadcasts, affected areas, and safety instructions.",
+      route: "/affected/warnings-updates",
+      icon: "⚠️",
+    },
+    {
       title: "Resources",
       description:
         "Filter published emergency resources by food, water, medical, or shelter type.",
@@ -86,12 +92,18 @@ export default function AffectedDashboard() {
         <View style={styles.inline}>
           <StatusBadge label="Iteration 2" />
           <Text style={styles.priorityText}>
-            Affected users can now filter resources that organization staff publish in RescueBridge.
+            Affected users can now view warnings, filter resources, and navigate to support locations.
           </Text>
         </View>
       </Card>
 
       <View style={styles.resourceSummary}>
+        <Card style={styles.resourceCard}>
+          <Text style={styles.resourceIcon}>⚠️</Text>
+          <Text style={styles.resourceNumber}>{alerts.length}</Text>
+          <Text style={styles.resourceLabel}>Active alerts</Text>
+        </Card>
+
         <Card style={styles.resourceCard}>
           <Text style={styles.resourceIcon}>📦</Text>
           <Text style={styles.resourceNumber}>{totalResourceCount}</Text>
@@ -102,12 +114,6 @@ export default function AffectedDashboard() {
           <Text style={styles.resourceIcon}>🛏️</Text>
           <Text style={styles.resourceNumber}>{totalPublishedBeds}</Text>
           <Text style={styles.resourceLabel}>Beds available</Text>
-        </Card>
-
-        <Card style={styles.resourceCard}>
-          <Text style={styles.resourceIcon}>⚠️</Text>
-          <Text style={styles.resourceNumber}>{alerts.length}</Text>
-          <Text style={styles.resourceLabel}>Active alerts</Text>
         </Card>
       </View>
 
