@@ -30,6 +30,13 @@ export default function OrganizationDashboard() {
       route: "/organization/update-status",
       icon: "🏢",
     },
+    {
+      title: "Alerts & Updates",
+      description:
+        "View recent emergency broadcasts and instructions.",
+      route: "/organization/alerts-updates",
+      icon: "🔔",
+    },
   ] as const;
 
   return (
