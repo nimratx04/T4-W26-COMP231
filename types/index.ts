@@ -154,3 +154,13 @@ export interface ReportDraft {
   urgency: Priority | "";
   photoName: string;
 }
+
+export interface Broadcast {
+  id: string;
+  title: string;
+  message: string;
+  target_area: string;
+  priority: Priority;
+  created_at: string;
+  sender_id?: string;
+}

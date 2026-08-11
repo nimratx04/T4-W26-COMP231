@@ -37,7 +37,8 @@ export default function AffectedDashboard() {
     },
     {
       title: "Resources",
-      description: "Filter published emergency resources by food, water, medical, or shelter type.",
+      description:
+        "Filter published emergency resources by food, water, medical, or shelter type.",
       route: "/affected/resources",
       icon: "📦",
     },
@@ -46,6 +47,12 @@ export default function AffectedDashboard() {
       description: "View only shelters published as available inside RescueBridge.",
       route: "/affected/nearby-shelters",
       icon: "🏠",
+    },
+    {
+      title: "Nearby Resources",
+      description: "Filter nearby support by Shelter, Food, Water, or Medical.",
+      route: "/affected/nearby-resources",
+      icon: "📍",
     },
   ] as const;
 

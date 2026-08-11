@@ -278,6 +278,7 @@ export const initialAlerts: AlertItem[] = [
   },
 ];
 
+// Mock data for Iteration 2 - Incident Reports
 export const initialIncidentReports: IncidentReport[] = [
   {
     id: "incident-1",

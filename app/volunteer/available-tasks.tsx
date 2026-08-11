@@ -112,7 +112,7 @@ export default function AvailableTasksScreen() {
 
       <SectionTitle
         title="Available & Nearby Tasks"
-        subtitle="Available tasks are loaded from Supabase. Verified volunteers can accept tasks."
+        subtitle="Review the task type, general location, and urgency before deciding whether to accept a task."
       />
 
       {isLoading ? (

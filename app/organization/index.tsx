@@ -50,6 +50,18 @@ export default function OrganizationDashboard() {
       route: "/organization/manage-resources",
       icon: "🧰",
     },
+    {
+      title: "Alerts & Updates",
+      description: "View recent emergency broadcasts and instructions.",
+      route: "/organization/alerts-updates",
+      icon: "🔔",
+    },
+    {
+      title: "Nearby Requests",
+      description: "Filter active requests, inspect urgency, and open saved locations.",
+      route: "/organization/nearby-requests",
+      icon: "📍",
+    },
   ] as const;
 
   return (
@@ -104,7 +116,7 @@ export default function OrganizationDashboard() {
         <View style={styles.inline}>
           <StatusBadge label="Iteration 2" />
           <Text style={styles.infoText}>
-            Organizations now control both published shelters and published emergency resources.
+            Organizations now control published shelters, emergency resources, alerts, and nearby requests.
           </Text>
         </View>
       </Card>
