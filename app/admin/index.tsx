@@ -45,6 +45,13 @@ export default function AdminDashboard() {
       route: "/admin/incident-reports",
       icon: "🚨",
     },
+    {
+      title: "Resources & Shelters",
+      description:
+        "Review and update resource or shelter availability.",
+      route: "/admin/manage-resources",
+      icon: "🏠",
+    },
   ] as const;
 
   return (
