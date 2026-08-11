@@ -21,7 +21,7 @@ type AlertRow = {
   created_at: string;
 };
 
-export default function CommunityAlertsScreen() {
+export default function OrganizationAlertsScreen() {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +38,7 @@ export default function CommunityAlertsScreen() {
 
     if (error) {
       setAlerts([]);
-      setErrorMessage(`Could not load community alerts: ${error.message}`);
+      setErrorMessage(`Could not load alerts: ${error.message}`);
     } else {
       setAlerts((data || []) as AlertRow[]);
     }
@@ -52,45 +52,36 @@ export default function CommunityAlertsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: "Community Alerts" }} />
-      <SectionTitle title="Community Alerts" subtitle="Review the message, affected area, and safety instructions for current alerts." />
+      <Stack.Screen options={{ title: "Alerts & Updates" }} />
+      <SectionTitle title="Alerts & Updates" subtitle="View recent emergency notices, affected areas, timestamps, and instructions." />
 
       {isLoading ? (
         <Card><Text style={styles.message}>Loading alerts...</Text></Card>
       ) : errorMessage ? (
-        <Card accentColor={COLORS.emergency}>
-          <Text style={styles.message}>{errorMessage}</Text>
-          <AppButton title="Try Again" onPress={loadAlerts} variant="danger" />
-        </Card>
+        <Card accentColor={COLORS.emergency}><Text style={styles.message}>{errorMessage}</Text></Card>
       ) : alerts.length === 0 ? (
-        <EmptyState icon="🔔" title="No alerts" message="Community alerts will appear here when an Admin publishes a broadcast." />
+        <EmptyState icon="🔔" title="No alerts" message="Recent emergency broadcasts will appear here." />
       ) : (
         alerts.map((alert) => {
           const expanded = expandedId === alert.id;
           return (
-            <Card key={alert.id} accentColor={alert.priority === "Urgent" ? COLORS.emergency : ROLE_COLORS.reporter.main}>
+            <Card key={alert.id} accentColor={alert.priority === "Urgent" ? COLORS.emergency : ROLE_COLORS.organization.main}>
               <View style={styles.headerRow}>
                 <View style={styles.flex}>
                   <Text style={styles.title}>{alert.title}</Text>
-                  <Text style={styles.date}>{new Date(alert.created_at).toLocaleString()}</Text>
+                  <Text style={styles.meta}>{alert.type} • {new Date(alert.created_at).toLocaleString()}</Text>
                 </View>
                 <StatusBadge label={alert.priority} />
               </View>
-
-              <Text style={styles.label}>Message</Text>
-              <Text style={styles.value}>{alert.message}</Text>
-
-              <Text style={styles.label}>Affected Area</Text>
-              <Text style={styles.value}>{alert.area}</Text>
-
+              <Text style={styles.area}>📍 {alert.area}</Text>
+              <Text style={styles.message}>{alert.message}</Text>
               {expanded ? (
-                <>
+                <View style={styles.details}>
                   <Text style={styles.label}>Instructions</Text>
-                  <Text style={styles.value}>{alert.instructions || "No additional instructions."}</Text>
-                </>
+                  <Text style={styles.message}>{alert.instructions || "No additional instructions."}</Text>
+                </View>
               ) : null}
-
-              <AppButton title={expanded ? "Hide Instructions" : "View Instructions"} onPress={() => setExpandedId(expanded ? null : alert.id)} variant="secondary" />
+              <AppButton title={expanded ? "Hide Details" : "View Alert Details"} onPress={() => setExpandedId(expanded ? null : alert.id)} variant="secondary" />
             </Card>
           );
         })
@@ -105,8 +96,9 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "flex-start", gap: SPACING.sm },
   flex: { flex: 1 },
   title: { color: COLORS.text, fontSize: FONT_SIZE.lg, fontWeight: "900" },
-  date: { color: COLORS.textMuted, fontSize: FONT_SIZE.xs, marginTop: 2 },
-  label: { color: COLORS.textMuted, fontSize: FONT_SIZE.xs, fontWeight: "800", textTransform: "uppercase", marginTop: SPACING.md },
-  value: { color: COLORS.text, fontSize: FONT_SIZE.sm, lineHeight: 20, marginTop: 3 },
-  message: { color: COLORS.textSecondary, fontSize: FONT_SIZE.sm, lineHeight: 20 },
+  meta: { color: COLORS.textMuted, fontSize: FONT_SIZE.xs, marginTop: 2 },
+  area: { color: ROLE_COLORS.organization.main, fontSize: FONT_SIZE.sm, fontWeight: "800", marginTop: SPACING.md },
+  message: { color: COLORS.textSecondary, fontSize: FONT_SIZE.sm, lineHeight: 20, marginTop: SPACING.sm },
+  details: { borderTopColor: COLORS.border, borderTopWidth: 1, marginTop: SPACING.md, paddingTop: SPACING.md },
+  label: { color: COLORS.textMuted, fontSize: FONT_SIZE.xs, fontWeight: "800", textTransform: "uppercase" },
 });

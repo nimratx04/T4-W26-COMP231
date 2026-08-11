@@ -28,6 +28,20 @@ export default function AffectedDashboard() {
       route: "/affected/my-requests",
       icon: "📋",
     },
+    {
+      title: "Nearby Shelters",
+      description:
+        "View nearby shelters sorted by distance.",
+      route: "/affected/nearby-resources?category=Shelter",
+      icon: "🏠",
+    },
+    {
+      title: "Nearby Resources",
+      description:
+        "Filter nearby support by Shelter, Food, Water, or Medical.",
+      route: "/affected/nearby-resources",
+      icon: "📍",
+    },
   ] as const;
 
   return (
