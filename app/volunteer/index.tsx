@@ -1,20 +1,92 @@
 import { Stack, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import AppButton from "../../components/AppButton";
 import Card from "../../components/Card";
 import Screen from "../../components/Screen";
 import SectionTitle from "../../components/SectionTitle";
 import StatusBadge from "../../components/StatusBadge";
 import { COLORS, FONT_SIZE, ROLE_COLORS, SPACING } from "../../constants/theme";
-import { useAppContext } from "../../context/AppContext";
+import { supabase } from "../../lib/supabase";
+
+type VolunteerRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  status: string | null;
+  result_message: string | null;
+  created_at: string | null;
+};
+
+type TaskRow = {
+  id: string;
+  status: string | null;
+  assigned_volunteer_id: string | null;
+};
 
 export default function VolunteerDashboard() {
   const router = useRouter();
-  const { currentVolunteer, tasks } = useAppContext();
 
-  const availableCount = tasks.filter((task) => task.status === "Available").length;
-  const myTaskCount = tasks.filter(
-    (task) => task.assignedVolunteerId === currentVolunteer.id
-  ).length;
+  const [currentVolunteer, setCurrentVolunteer] = useState<VolunteerRow | null>(null);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const loadDashboard = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+
+    const [volunteerResult, tasksResult] = await Promise.all([
+      supabase
+        .from("volunteers")
+        .select("id, name, email, status, result_message, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+
+      supabase.from("tasks").select("id, status, assigned_volunteer_id"),
+    ]);
+
+    if (volunteerResult.error) {
+      setCurrentVolunteer(null);
+      setErrorMessage("Could not load volunteer profile from Supabase.");
+    } else {
+      setCurrentVolunteer(volunteerResult.data as VolunteerRow | null);
+    }
+
+    if (tasksResult.error) {
+      setTasks([]);
+    } else {
+      setTasks((tasksResult.data || []) as TaskRow[]);
+    }
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const availableCount = useMemo(
+    () => tasks.filter((task) => task.status === "Available").length,
+    [tasks],
+  );
+
+  const myTaskCount = useMemo(
+    () =>
+      currentVolunteer
+        ? tasks.filter((task) => task.assigned_volunteer_id === currentVolunteer.id).length
+        : 0,
+    [tasks, currentVolunteer],
+  );
+
+  const volunteerName = currentVolunteer?.name || "No volunteer submitted";
+  const volunteerStatus = currentVolunteer?.status || "Not Submitted";
+  const resultMessage =
+    currentVolunteer?.result_message ||
+    "Submit verification information first, then wait for admin review.";
+
+  const verified = currentVolunteer?.status === "Verified";
 
   const links = [
     {
@@ -50,74 +122,117 @@ export default function VolunteerDashboard() {
 
       <SectionTitle
         title="Volunteer Dashboard"
-        subtitle="Iteration Planning 1 screens for verification, available tasks, and task progress."
+        subtitle="View verification status, available tasks, and volunteer task progress."
       />
 
-      <Card accentColor={ROLE_COLORS.volunteer.main}>
-        <Text style={styles.name}>{currentVolunteer.name}</Text>
-
-        <View style={styles.statusRow}>
-          <StatusBadge label={currentVolunteer.status} />
-          <Text style={styles.statusText}>{currentVolunteer.resultMessage}</Text>
-        </View>
-      </Card>
-
-      <View style={styles.summaryRow}>
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{availableCount}</Text>
-          <Text style={styles.summaryLabel}>Available tasks</Text>
+      {isLoading ? (
+        <Card>
+          <Text style={styles.loadingText}>Loading volunteer dashboard...</Text>
         </Card>
-
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{myTaskCount}</Text>
-          <Text style={styles.summaryLabel}>My tasks</Text>
-        </Card>
-      </View>
-
-      <Card accentColor={ROLE_COLORS.volunteer.main} style={styles.infoCard}>
-        <View style={styles.inline}>
-          <StatusBadge label="Iteration 1" />
-          <Text style={styles.infoText}>
-            This section focuses on M6 Submit Verification Information, M7 View
-            Verification Status, M8 View Available Tasks, and M10 Accept and Manage
-            Tasks.
-          </Text>
-        </View>
-      </Card>
-
-      {currentVolunteer.status !== "Verified" ? (
-        <Card accentColor={COLORS.warning} style={styles.notice}>
-          <Text style={styles.noticeTitle}>Task access is restricted.</Text>
-          <Text style={styles.noticeText}>
-            Open the Admin dashboard and approve {currentVolunteer.name} to test
-            the full volunteer flow.
-          </Text>
+      ) : errorMessage ? (
+        <Card accentColor={COLORS.emergency} style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Database error</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <AppButton title="Try Again" onPress={loadDashboard} variant="danger" />
         </Card>
       ) : null}
 
-      {links.map((link) => (
-        <Card
-          key={link.route}
-          onPress={() => router.push(link.route as any)}
-          accentColor={ROLE_COLORS.volunteer.main}
-        >
-          <View style={styles.linkRow}>
-            <Text style={styles.icon}>{link.icon}</Text>
+      {!isLoading ? (
+        <>
+          <Card accentColor={verified ? COLORS.success : ROLE_COLORS.volunteer.main}>
+            <Text style={styles.name}>{volunteerName}</Text>
 
-            <View style={styles.linkText}>
-              <Text style={styles.linkTitle}>{link.title}</Text>
-              <Text style={styles.linkDescription}>{link.description}</Text>
+            <View style={styles.statusRow}>
+              <StatusBadge label={volunteerStatus} />
+              <Text style={styles.statusText}>{resultMessage}</Text>
             </View>
+          </Card>
 
-            <Text style={styles.arrow}>›</Text>
+          <View style={styles.summaryRow}>
+            <Card style={styles.summaryCard}>
+              <Text style={styles.summaryNumber}>{availableCount}</Text>
+              <Text style={styles.summaryLabel}>Available tasks</Text>
+            </Card>
+
+            <Card style={styles.summaryCard}>
+              <Text style={styles.summaryNumber}>{myTaskCount}</Text>
+              <Text style={styles.summaryLabel}>My tasks</Text>
+            </Card>
           </View>
-        </Card>
-      ))}
+
+          <Card accentColor={ROLE_COLORS.volunteer.main} style={styles.infoCard}>
+            <View style={styles.inline}>
+              <StatusBadge label="Iteration 2" />
+              <Text style={styles.infoText}>
+                Volunteer status is now loaded from Supabase, so Dashboard,
+                Verification Status, and Admin Approval stay consistent.
+              </Text>
+            </View>
+          </Card>
+
+          {!verified ? (
+            <Card accentColor={COLORS.warning} style={styles.notice}>
+              <Text style={styles.noticeTitle}>Task access is restricted.</Text>
+              <Text style={styles.noticeText}>
+                {currentVolunteer
+                  ? `Open the Admin dashboard and approve ${volunteerName} to test the full volunteer flow.`
+                  : "Submit verification information first. Then Admin can approve the volunteer."}
+              </Text>
+            </Card>
+          ) : (
+            <Card accentColor={COLORS.success} style={styles.accessCard}>
+              <Text style={styles.accessTitle}>Task access enabled</Text>
+              <Text style={styles.accessText}>
+                This volunteer is verified and can now view, accept, and manage tasks.
+              </Text>
+            </Card>
+          )}
+
+          {links.map((link) => (
+            <Card
+              key={link.route}
+              onPress={() => router.push(link.route as any)}
+              accentColor={ROLE_COLORS.volunteer.main}
+            >
+              <View style={styles.linkRow}>
+                <Text style={styles.icon}>{link.icon}</Text>
+
+                <View style={styles.linkText}>
+                  <Text style={styles.linkTitle}>{link.title}</Text>
+                  <Text style={styles.linkDescription}>{link.description}</Text>
+                </View>
+
+                <Text style={styles.arrow}>›</Text>
+              </View>
+            </Card>
+          ))}
+
+          <AppButton title="Refresh Dashboard" onPress={loadDashboard} variant="secondary" />
+        </>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingText: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.sm,
+  },
+  errorCard: {
+    backgroundColor: COLORS.emergencyLight,
+  },
+  errorTitle: {
+    color: COLORS.emergencyDark,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: "900",
+  },
+  errorText: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
+    marginVertical: SPACING.sm,
+  },
   name: {
     color: COLORS.text,
     fontSize: FONT_SIZE.xl,
@@ -177,6 +292,20 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
   },
   noticeText: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 18,
+    marginTop: SPACING.xs,
+  },
+  accessCard: {
+    backgroundColor: COLORS.successLight,
+  },
+  accessTitle: {
+    color: COLORS.success,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: "900",
+  },
+  accessText: {
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     lineHeight: 18,
