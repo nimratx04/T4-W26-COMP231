@@ -453,3 +453,255 @@ export const deleteResource = async (resourceId: string) => {
   return true;
 };
 
+// ============================================================
+// S7 / AC-5: Connect broadcast trigger/storage backend
+// ============================================================
+
+export interface BroadcastData {
+  title: string;
+  message: string;
+  target_area: string;
+  priority: string;
+  sender_id?: string;
+}
+
+export const createBroadcast = async (broadcast: BroadcastData) => {
+  const { data, error } = await supabase
+    .from("broadcasts")
+    .insert({
+      ...broadcast,
+      created_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  // Also create an alert from the broadcast
+  const alertData = {
+    title: broadcast.title,
+    message: broadcast.message,
+    area: broadcast.target_area,
+    priority: broadcast.priority,
+    type: "Emergency",
+    instructions: "Please follow the instructions in the broadcast.",
+  };
+
+  await createAlert(alertData);
+
+  return data;
+};
+
+export const getBroadcasts = async () => {
+  const { data, error } = await supabase
+    .from("broadcasts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const getBroadcastsByArea = async (area: string) => {
+  const { data, error } = await supabase
+    .from("broadcasts")
+    .select("*")
+    .ilike("target_area", `%${area}%`)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+// ============================================================
+// M9 / V-4: Connect task detail data from backend
+// ============================================================
+
+export const getTaskDetails = async (taskId: string) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const getTasksByVolunteer = async (volunteerId: string) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("assigned_volunteer_id", volunteerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const getAvailableTasks = async () => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("status", "Available")
+    .order("priority", { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateTaskStatus = async (taskId: string, status: string) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ status })
+    .eq("id", taskId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const assignTaskToVolunteer = async (taskId: string, volunteerId: string, volunteerName: string) => {
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({
+      status: "Accepted",
+      assigned_volunteer_id: volunteerId,
+      assigned_volunteer_name: volunteerName,
+    })
+    .eq("id", taskId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// ============================================================
+// Additional Helper Functions
+// ============================================================
+
+export const getVolunteerVerificationStatus = async (volunteerId: string) => {
+  const { data, error } = await supabase
+    .from("volunteers")
+    .select("id, status, result_message")
+    .eq("id", volunteerId)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const getOrganizationStatus = async () => {
+  const { data, error } = await supabase
+    .from("organization_status")
+    .select("*")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateOrganizationStatus = async (status: string, note?: string) => {
+  const { data, error } = await supabase
+    .from("organization_status")
+    .insert({
+      status,
+      note: note || null,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// ============================================================
+// Database Initialization (for testing)
+// ============================================================
+
+export const seedTestData = async () => {
+  try {
+    // Seed incident reports
+    const incidents = [
+      {
+        incident_type: "Flooded Road",
+        description: "Water covering both lanes, vehicles turning around.",
+        location: "Kingston Road near Markham Road",
+        urgency: "High",
+        status: "Pending Verification",
+      },
+      {
+        incident_type: "Power Outage",
+        description: "Several apartment buildings without power.",
+        location: "North York",
+        urgency: "Medium",
+        status: "Verified",
+      },
+    ];
+
+    for (const incident of incidents) {
+      await createIncidentReport(incident);
+    }
+
+    // Seed alerts
+    const alerts = [
+      {
+        title: "Flood Warning",
+        message: "Heavy rain has caused localized flooding in East Toronto.",
+        area: "East Toronto",
+        priority: "Urgent",
+        type: "Emergency",
+        instructions: "Avoid flooded roads.",
+      },
+      {
+        title: "Warming Centre Open",
+        message: "A warming centre is open at 45 Progress Avenue.",
+        area: "Scarborough",
+        priority: "High",
+        type: "Safety",
+        instructions: "Walk-ins accepted.",
+      },
+    ];
+
+    for (const alert of alerts) {
+      await createAlert(alert);
+    }
+
+    // Seed tasks
+    const tasks = [
+      {
+        title: "Deliver Bottled Water",
+        type: "Water Delivery",
+        priority: "Urgent",
+        location: "Kennedy Road / Eglinton Avenue East",
+        urgency: "Complete within 60 minutes",
+        description: "Pick up and deliver water to the warming site.",
+        status: "Available",
+      },
+      {
+        title: "Transport Supplies",
+        type: "Supply Transport",
+        priority: "High",
+        location: "Scarborough",
+        urgency: "Needed before 9:00 PM",
+        description: "Move blankets and hygiene kits to Progress Shelter.",
+        status: "Available",
+      },
+    ];
+
+    for (const task of tasks) {
+      await supabase.from("tasks").insert(task);
+    }
+
+    return { success: true, message: "Test data seeded successfully" };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+
