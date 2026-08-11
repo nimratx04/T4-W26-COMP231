@@ -9,6 +9,7 @@ create table if not exists help_requests (
   priority text not null,
   status text default 'Pending',
   assigned_volunteer text,
+  assigned_volunteer_id uuid references volunteers(id),
   created_at timestamptz default now()
 );
 

@@ -9,6 +9,7 @@ import SectionTitle from "../../components/SectionTitle";
 import StatusBadge from "../../components/StatusBadge";
 import { COLORS, FONT_SIZE, SPACING } from "../../constants/theme";
 import { supabase } from "../../lib/supabase";
+import type { HelpRequestStatus, HelpType, Priority } from "../../types";
 
 type VolunteerRow = {
   id: string;
@@ -16,48 +17,70 @@ type VolunteerRow = {
   status: string | null;
 };
 
-type TaskRow = {
+type HelpRequestRow = {
   id: string;
-  title: string | null;
-  type: string | null;
+  help_type: HelpType | null;
   location: string | null;
-  urgency: string | null;
-  priority: string | null;
   description: string | null;
-  status: string | null;
+  priority: Priority | null;
+  status: HelpRequestStatus | null;
   assigned_volunteer_id: string | null;
   created_at: string | null;
 };
 
-const requiredTaskFields: Array<keyof Pick<
-  TaskRow,
-  "title" | "type" | "location" | "urgency" | "priority" | "description"
->> = ["title", "type", "location", "urgency", "priority", "description"];
-
-const fieldLabels: Record<string, string> = {
-  title: "title",
-  type: "task type",
-  location: "general location",
-  urgency: "urgency",
-  priority: "priority",
-  description: "description",
+const priorityRank: Record<Priority, number> = {
+  Urgent: 1,
+  High: 2,
+  Medium: 3,
+  Low: 4,
 };
 
 const hasText = (value: string | null | undefined) => Boolean(value?.trim());
 
-const getMissingTaskFields = (task: TaskRow) =>
-  requiredTaskFields
-    .filter((field) => !hasText(task[field]))
-    .map((field) => fieldLabels[field]);
-
 const getDisplayValue = (value: string | null | undefined, fallback: string) =>
   value?.trim() ? value.trim() : fallback;
+
+const getTaskTitle = (request: HelpRequestRow) =>
+  request.help_type ? `${request.help_type} Support` : "Untitled task";
+
+const getMissingTaskFields = (request: HelpRequestRow) => {
+  const missingFields: string[] = [];
+
+  if (!hasText(request.help_type)) {
+    missingFields.push("task type");
+  }
+
+  if (!hasText(request.location)) {
+    missingFields.push("location");
+  }
+
+  if (!hasText(request.priority)) {
+    missingFields.push("priority/urgency");
+  }
+
+  if (!hasText(request.description)) {
+    missingFields.push("description");
+  }
+
+  return missingFields;
+};
+
+const formatDateTime = (value: string | null) => {
+  if (!value) return "Date unavailable";
+
+  return new Date(value).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 export default function AvailableTasksScreen() {
   const router = useRouter();
 
   const [currentVolunteer, setCurrentVolunteer] = useState<VolunteerRow | null>(null);
-  const [availableTasks, setAvailableTasks] = useState<TaskRow[]>([]);
+  const [availableRequests, setAvailableRequests] = useState<HelpRequestRow[]>([]);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -67,7 +90,7 @@ export default function AvailableTasksScreen() {
     setErrorMessage("");
     setMessage("");
 
-    const [volunteerResult, tasksResult] = await Promise.all([
+    const [volunteerResult, requestsResult] = await Promise.all([
       supabase
         .from("volunteers")
         .select("id, name, status")
@@ -76,11 +99,12 @@ export default function AvailableTasksScreen() {
         .maybeSingle(),
 
       supabase
-        .from("tasks")
+        .from("help_requests")
         .select(
-          "id, title, type, location, urgency, priority, description, status, assigned_volunteer_id, created_at",
+          "id, help_type, location, description, priority, status, assigned_volunteer_id, created_at",
         )
-        .eq("status", "Available")
+        .eq("status", "Pending")
+        .is("assigned_volunteer_id", null)
         .order("created_at", { ascending: false }),
     ]);
 
@@ -90,11 +114,11 @@ export default function AvailableTasksScreen() {
       setCurrentVolunteer(volunteerResult.data as VolunteerRow | null);
     }
 
-    if (tasksResult.error) {
-      setErrorMessage("Could not load available tasks from Supabase.");
-      setAvailableTasks([]);
+    if (requestsResult.error) {
+      setAvailableRequests([]);
+      setErrorMessage("Could not load available help requests from Supabase.");
     } else {
-      setAvailableTasks((tasksResult.data || []) as TaskRow[]);
+      setAvailableRequests((requestsResult.data || []) as HelpRequestRow[]);
     }
 
     setIsLoading(false);
@@ -106,48 +130,74 @@ export default function AvailableTasksScreen() {
 
   const verified = currentVolunteer?.status === "Verified";
 
-  const incompleteTaskCount = useMemo(
-    () => availableTasks.filter((task) => getMissingTaskFields(task).length > 0).length,
-    [availableTasks],
+  const sortedRequests = useMemo(
+    () =>
+      [...availableRequests].sort((a, b) => {
+        const aPriority = a.priority || "Low";
+        const bPriority = b.priority || "Low";
+
+        const priorityDifference =
+          priorityRank[aPriority as Priority] - priorityRank[bPriority as Priority];
+
+        if (priorityDifference !== 0) return priorityDifference;
+
+        return (
+          new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        );
+      }),
+    [availableRequests],
   );
 
-  const validTaskCount = availableTasks.length - incompleteTaskCount;
+  const urgentCount = availableRequests.filter(
+    (request) => request.priority === "Urgent",
+  ).length;
 
-  const accept = async (task: TaskRow) => {
+  const incompleteTaskCount = availableRequests.filter(
+    (request) => getMissingTaskFields(request).length > 0,
+  ).length;
+
+  const completeTaskCount = availableRequests.length - incompleteTaskCount;
+
+  const acceptRequest = async (request: HelpRequestRow) => {
     setMessage("");
 
     if (!currentVolunteer || currentVolunteer.status !== "Verified") {
-      setMessage("The task could not be accepted. Only a Verified volunteer can accept tasks.");
+      setMessage("Only a Verified volunteer can accept available tasks.");
       return;
     }
 
-    const missingFields = getMissingTaskFields(task);
+    const missingFields = getMissingTaskFields(request);
 
     if (missingFields.length > 0) {
       setMessage(
         `This task is missing ${missingFields.join(
           ", ",
-        )}. Ask an admin to complete the task details before accepting it.`,
+        )}. Ask Admin to complete the task details before accepting it.`,
       );
       return;
     }
 
     const { error } = await supabase
-      .from("tasks")
+      .from("help_requests")
       .update({
-        status: "Accepted",
         assigned_volunteer_id: currentVolunteer.id,
+        status: "Active",
       })
-      .eq("id", task.id)
-      .eq("status", "Available");
+      .eq("id", request.id)
+      .eq("status", "Pending")
+      .is("assigned_volunteer_id", null);
 
     if (error) {
-      setMessage("The task could not be accepted. Please try again.");
+      setMessage("This task could not be accepted. It may already be assigned.");
       return;
     }
 
-    setAvailableTasks((current) => current.filter((item) => item.id !== task.id));
-    setMessage(`${task.title} was moved to My Tasks with Accepted status.`);
+    setAvailableRequests((current) => current.filter((item) => item.id !== request.id));
+    setMessage(
+      `${getTaskTitle(request)} was accepted. It is now Active and assigned to ${
+        currentVolunteer.name || "you"
+      }.`,
+    );
   };
 
   return (
@@ -155,18 +205,18 @@ export default function AvailableTasksScreen() {
       <Stack.Screen options={{ title: "Available Tasks" }} />
 
       <SectionTitle
-        title="Available & Nearby Tasks"
-        subtitle="Review task details and validation warnings before accepting volunteer work."
+        title="Available Nearby Tasks"
+        subtitle="Every unassigned pending help request appears here for verified volunteers. Accepting one updates Admin data automatically."
       />
 
       <View style={styles.summaryRow}>
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{availableTasks.length}</Text>
+          <Text style={styles.summaryNumber}>{availableRequests.length}</Text>
           <Text style={styles.summaryLabel}>Available</Text>
         </Card>
 
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{validTaskCount}</Text>
+          <Text style={styles.summaryNumber}>{completeTaskCount}</Text>
           <Text style={styles.summaryLabel}>Complete details</Text>
         </Card>
 
@@ -178,17 +228,12 @@ export default function AvailableTasksScreen() {
         </Card>
       </View>
 
-      {isLoading ? (
-        <Card>
-          <Text style={styles.loadingText}>Loading available tasks...</Text>
+      <View style={styles.summaryRow}>
+        <Card style={styles.summaryCard}>
+          <Text style={[styles.summaryNumber, styles.urgentNumber]}>{urgentCount}</Text>
+          <Text style={styles.summaryLabel}>Urgent</Text>
         </Card>
-      ) : errorMessage ? (
-        <Card accentColor={COLORS.emergency} style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Database error</Text>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-          <AppButton title="Try Again" onPress={loadData} variant="danger" />
-        </Card>
-      ) : null}
+      </View>
 
       {!isLoading && !verified ? (
         <Card accentColor={COLORS.emergency} style={styles.lockCard}>
@@ -210,10 +255,18 @@ export default function AvailableTasksScreen() {
       ) : null}
 
       {message ? (
-        <Card accentColor={message.includes("moved") ? COLORS.success : COLORS.warning}>
+        <Card
+          accentColor={
+            message.includes("accepted")
+              ? COLORS.success
+              : message.includes("missing")
+                ? COLORS.warning
+                : COLORS.emergency
+          }
+        >
           <Text style={styles.message}>{message}</Text>
 
-          {message.includes("moved") ? (
+          {message.includes("accepted") ? (
             <AppButton
               title="Open My Tasks"
               onPress={() => router.push("/volunteer/my-tasks" as any)}
@@ -223,41 +276,50 @@ export default function AvailableTasksScreen() {
         </Card>
       ) : null}
 
-      {!isLoading && !errorMessage && availableTasks.length === 0 ? (
+      {isLoading ? (
+        <Card>
+          <Text style={styles.loadingText}>Loading available tasks...</Text>
+        </Card>
+      ) : errorMessage ? (
+        <Card accentColor={COLORS.emergency} style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Database error</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <AppButton title="Try Again" onPress={loadData} variant="danger" />
+        </Card>
+      ) : sortedRequests.length === 0 ? (
         <EmptyState
           icon="📌"
           title="No available tasks"
-          message="New available tasks will appear here when coordinators publish them."
+          message="Pending unassigned help requests from affected users will appear here."
+          actionTitle="Refresh Tasks"
+          onAction={loadData}
         />
       ) : (
-        availableTasks.map((task) => {
-          const missingFields = getMissingTaskFields(task);
+        sortedRequests.map((request) => {
+          const missingFields = getMissingTaskFields(request);
           const taskIsComplete = missingFields.length === 0;
 
           return (
             <Card
-              key={task.id}
+              key={request.id}
               accentColor={
                 !taskIsComplete
                   ? COLORS.warning
-                  : task.priority === "Urgent"
+                  : request.priority === "Urgent"
                     ? COLORS.emergency
                     : COLORS.primary
               }
             >
               <View style={styles.headerRow}>
                 <View style={styles.titleWrap}>
-                  <Text style={styles.title}>
-                    {getDisplayValue(task.title, "Untitled task")}
-                  </Text>
-                  <Text style={styles.type}>
-                    {getDisplayValue(task.type, "Task type missing")}
-                  </Text>
+                  <Text style={styles.title}>{getTaskTitle(request)}</Text>
+                  <Text style={styles.meta}>{formatDateTime(request.created_at)}</Text>
                 </View>
 
                 <View style={styles.badges}>
-                  <StatusBadge label={getDisplayValue(task.priority, "Missing")} />
+                  <StatusBadge label={getDisplayValue(request.priority, "Missing")} />
                   <StatusBadge label={taskIsComplete ? "Complete" : "Incomplete"} />
+                  <StatusBadge label="Available" />
                 </View>
               </View>
 
@@ -265,29 +327,35 @@ export default function AvailableTasksScreen() {
                 <Card accentColor={COLORS.warning} style={styles.validationCard}>
                   <Text style={styles.validationTitle}>Missing task details</Text>
                   <Text style={styles.validationText}>
-                    Required field(s): {missingFields.join(", ")}. This task cannot be
-                    accepted until the missing details are added.
+                    Required field(s): {missingFields.join(", ")}. This task is visible
+                    to volunteers but cannot be accepted until Admin completes the details.
                   </Text>
                 </Card>
               ) : null}
 
-              <Text style={styles.label}>General location</Text>
+              <Text style={styles.label}>Task type</Text>
               <Text style={styles.value}>
-                {getDisplayValue(task.location, "Location missing")}
+                {getDisplayValue(request.help_type, "Task type missing")}
               </Text>
 
-              <Text style={styles.label}>Urgency</Text>
+              <Text style={styles.label}>Nearby / General location</Text>
               <Text style={styles.value}>
-                {getDisplayValue(task.urgency, "Urgency missing")}
+                {getDisplayValue(request.location, "Location missing")}
               </Text>
 
+              <Text style={styles.label}>Priority / Urgency</Text>
+              <Text style={styles.value}>
+                {getDisplayValue(request.priority, "Priority missing")}
+              </Text>
+
+              <Text style={styles.label}>Need description</Text>
               <Text style={styles.description}>
-                {getDisplayValue(task.description, "Description missing")}
+                {getDisplayValue(request.description, "Description missing")}
               </Text>
 
               <AppButton
-                title={taskIsComplete ? "Accept Task" : "Cannot Accept Yet"}
-                onPress={() => accept(task)}
+                title={taskIsComplete ? "Accept This Task" : "Cannot Accept Yet"}
+                onPress={() => acceptRequest(request)}
                 variant={taskIsComplete ? "success" : "outline"}
                 disabled={!verified || !taskIsComplete}
                 style={styles.acceptButton}
@@ -317,6 +385,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: FONT_SIZE.xl,
     fontWeight: "900",
+  },
+  urgentNumber: {
+    color: COLORS.emergency,
   },
   warningNumber: {
     color: COLORS.warning,
@@ -380,8 +451,8 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.lg,
     fontWeight: "900",
   },
-  type: {
-    color: COLORS.textSecondary,
+  meta: {
+    color: COLORS.textMuted,
     fontSize: FONT_SIZE.xs,
     marginTop: 2,
   },
@@ -421,7 +492,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT_SIZE.sm,
     lineHeight: 20,
-    marginTop: SPACING.md,
+    marginTop: SPACING.xs,
   },
   acceptButton: {
     marginTop: SPACING.md,
