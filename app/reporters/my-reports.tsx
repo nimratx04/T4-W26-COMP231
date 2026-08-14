@@ -83,7 +83,7 @@ export default function MyReportsScreen() {
     setErrorMessage("");
 
     const { data, error } = await supabase
-      .from("incident_reports")
+      .from("reports")
       .select("*")
       .order("created_at", { ascending: false });
 

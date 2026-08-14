@@ -33,7 +33,7 @@ export interface IncidentReportData {
 
 export const createIncidentReport = async (report: IncidentReportData) => {
   const { data, error } = await supabase
-    .from("incident_reports")
+    .from("reports")
     .insert({
       ...report,
       status: report.status || "Pending Verification",
@@ -51,7 +51,7 @@ export const createIncidentReport = async (report: IncidentReportData) => {
 
 export const submitIncidentReportWithStatus = async (report: IncidentReportData) => {
   const { data, error } = await supabase
-    .from("incident_reports")
+    .from("reports")
     .insert({
       ...report,
       status: "Pending Verification",
@@ -65,7 +65,7 @@ export const submitIncidentReportWithStatus = async (report: IncidentReportData)
 
 export const getIncidentReportStatus = async (reportId: string) => {
   const { data, error } = await supabase
-    .from("incident_reports")
+    .from("reports")
     .select("id, status, created_at")
     .eq("id", reportId)
     .single();
@@ -80,7 +80,7 @@ export const getIncidentReportStatus = async (reportId: string) => {
 
 export const getUserIncidentReports = async (userId?: string) => {
   let query = supabase
-    .from("incident_reports")
+    .from("reports")
     .select("*")
     .order("created_at", { ascending: false });
 
@@ -95,7 +95,7 @@ export const getUserIncidentReports = async (userId?: string) => {
 
 export const getIncidentReportsByStatus = async (status: string) => {
   const { data, error } = await supabase
-    .from("incident_reports")
+    .from("reports")
     .select("*")
     .eq("status", status)
     .order("created_at", { ascending: false });
@@ -188,7 +188,7 @@ export const updateIncidentStatus = async (
   status: "Verified" | "Responding" | "Resolved" | "Rejected"
 ) => {
   const { data, error } = await supabase
-    .from("incident_reports")
+    .from("reports")
     .update({ status })
     .eq("id", incidentId)
     .select()
@@ -203,7 +203,7 @@ export const bulkUpdateIncidentStatus = async (
   status: "Verified" | "Responding" | "Resolved" | "Rejected"
 ) => {
   const { data, error } = await supabase
-    .from("incident_reports")
+    .from("reports")
     .update({ status })
     .in("id", incidentIds)
     .select();
