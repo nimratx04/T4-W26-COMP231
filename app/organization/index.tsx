@@ -80,7 +80,10 @@ export default function OrganizationDashboard() {
         </Card>
 
         <Card style={styles.summaryCard}>
-          <StatusBadge label={organizationStatus.status} />
+          <View style={styles.centeredStatusBadge}>
+            <StatusBadge label={organizationStatus.status} />
+          </View>
+
           <Text style={styles.summaryLabel}>Current status</Text>
         </Card>
 
@@ -262,5 +265,8 @@ const styles = StyleSheet.create({
   arrow: {
     color: ROLE_COLORS.organization.main,
     fontSize: 32,
+  },
+  centeredStatusBadge: {
+    alignSelf: "center",
   },
 });
