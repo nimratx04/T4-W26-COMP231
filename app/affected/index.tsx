@@ -9,11 +9,18 @@ import { useAppContext } from "../../context/AppContext";
 
 export default function AffectedDashboard() {
   const router = useRouter();
-  const { helpRequests } = useAppContext();
+  const { alerts, helpRequests, publishedShelters, publishedEmergencyResources } =
+    useAppContext();
 
   const openCount = helpRequests.filter((item) => item.status !== "Resolved").length;
   const resolvedCount = helpRequests.filter((item) => item.status === "Resolved").length;
   const urgentCount = helpRequests.filter((item) => item.priority === "Urgent").length;
+  const totalPublishedBeds = publishedShelters.reduce(
+    (total, shelter) => total + shelter.availableBeds,
+    0,
+  );
+
+  const totalResourceCount = publishedEmergencyResources.length + publishedShelters.length;
 
   const links = [
     {
@@ -28,6 +35,31 @@ export default function AffectedDashboard() {
       route: "/affected/my-requests",
       icon: "📋",
     },
+    {
+      title: "Warnings & Updates",
+      description: "View emergency broadcasts, affected areas, and safety instructions.",
+      route: "/affected/warnings-updates",
+      icon: "⚠️",
+    },
+    {
+      title: "Resources",
+      description:
+        "Filter published emergency resources by food, water, medical, or shelter type.",
+      route: "/affected/resources",
+      icon: "📦",
+    },
+    {
+      title: "Nearby Shelters",
+      description: "View only shelters published as available inside RescueBridge.",
+      route: "/affected/nearby-shelters",
+      icon: "🏠",
+    },
+    {
+      title: "Nearby Resources",
+      description: "Filter nearby support by Shelter, Food, Water, or Medical.",
+      route: "/affected/nearby-resources",
+      icon: "📍",
+    },
   ] as const;
 
   return (
@@ -36,7 +68,7 @@ export default function AffectedDashboard() {
 
       <SectionTitle
         title="Affected Individual Dashboard"
-        subtitle="Iteration Planning 1 screens for submitting and tracking emergency help requests."
+        subtitle="Submit urgent needs, track requests, and view available resources published through RescueBridge."
       />
 
       <View style={styles.summaryRow}>
@@ -56,14 +88,34 @@ export default function AffectedDashboard() {
         </Card>
       </View>
 
-      <Card accentColor={COLORS.emergency} style={styles.priorityCard}>
+      <Card accentColor={ROLE_COLORS.affected.main} style={styles.priorityCard}>
         <View style={styles.inline}>
-          <StatusBadge label="Iteration 1" />
+          <StatusBadge label="Iteration 2" />
           <Text style={styles.priorityText}>
-            This section focuses on M1 Submit a Help Request and M2 View and Track Submitted Requests.
+            Affected users can now view warnings, filter resources, and navigate to support locations.
           </Text>
         </View>
       </Card>
+
+      <View style={styles.resourceSummary}>
+        <Card style={styles.resourceCard}>
+          <Text style={styles.resourceIcon}>⚠️</Text>
+          <Text style={styles.resourceNumber}>{alerts.length}</Text>
+          <Text style={styles.resourceLabel}>Active alerts</Text>
+        </Card>
+
+        <Card style={styles.resourceCard}>
+          <Text style={styles.resourceIcon}>📦</Text>
+          <Text style={styles.resourceNumber}>{totalResourceCount}</Text>
+          <Text style={styles.resourceLabel}>Published resources</Text>
+        </Card>
+
+        <Card style={styles.resourceCard}>
+          <Text style={styles.resourceIcon}>🛏️</Text>
+          <Text style={styles.resourceNumber}>{totalPublishedBeds}</Text>
+          <Text style={styles.resourceLabel}>Beds available</Text>
+        </Card>
+      </View>
 
       {links.map((link) => (
         <Card
@@ -122,6 +174,31 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FONT_SIZE.sm,
     lineHeight: 19,
+  },
+  resourceSummary: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  resourceCard: {
+    flex: 1,
+    alignItems: "center",
+    padding: SPACING.md,
+  },
+  resourceIcon: {
+    fontSize: 22,
+    marginBottom: SPACING.xs,
+  },
+  resourceNumber: {
+    color: COLORS.text,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: "900",
+  },
+  resourceLabel: {
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.xs,
+    textAlign: "center",
+    marginTop: 2,
   },
   linkRow: {
     flexDirection: "row",

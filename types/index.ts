@@ -36,6 +36,46 @@ export interface OrganizationStatusRecord {
   updatedAt: string;
 }
 
+export interface ShelterResource {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  contactNumber: string;
+  availableBeds: number;
+  totalCapacity: number;
+  foodSupport: number;
+  waterSupport: number;
+  medicalSupport: string;
+  supplies: string;
+  operatingHours: string;
+  status: OrganizationStatusValue;
+  isPublished: boolean;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
+export type EmergencyResourceCategory = "Food" | "Water" | "Medical";
+
+export interface EmergencyResource {
+  id: string;
+  name: string;
+  category: EmergencyResourceCategory;
+  address: string;
+  city: string;
+  contactNumber: string;
+  quantity: number;
+  unit: string;
+  availabilityNote: string;
+  operatingHours: string;
+  status: OrganizationStatusValue;
+  isPublished: boolean;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
 export type VerificationStatus = "Pending" | "Verified" | "Rejected" | "Expired";
 
 export interface Volunteer {
@@ -79,7 +119,6 @@ export interface AlertItem {
   instructions?: string;
 }
 
-// Iteration 2 Types - Incident Reports
 export type IncidentStatus =
   | "Pending Verification"
   | "Verified"
@@ -116,7 +155,6 @@ export interface ReportDraft {
   photoName: string;
 }
 
-// Iteration 2 Types - Broadcast
 export interface Broadcast {
   id: string;
   title: string;
