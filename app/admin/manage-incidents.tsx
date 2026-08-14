@@ -67,7 +67,7 @@ export default function ManageIncidentsScreen() {
     setFeedback("");
 
     const { data, error } = await supabase
-      .from("reports")
+      .from("reporters")
       .select("*")
       .order("created_at", { ascending: false });
 
@@ -112,7 +112,7 @@ export default function ManageIncidentsScreen() {
     }
 
     const { error } = await supabase
-      .from("reports")
+      .from("reporters")
       .update({ status })
       .eq("id", incident.id);
 
